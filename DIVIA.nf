@@ -1,754 +1,1316 @@
+#!/usr/bin/env nextflow
+/***********************************************************************************
+ This is a Nextflow pipeline-BALL Classification Container  
+ Input: Fastq filelist   
+ Output: 
+ Written by: Wenchao Zhang
+ The Center for Applied Bioinformatics,St. Jude Children Research Hosptial
+ Date: 09/20/2022
+***********************************************************************************/
 
 
+RANK_Training_RDS  =""
+RF_Training_RDS =""
+def parse_config_parameters() {
+    if( params.Lineage_Type == 'BALL' )
+    {
+  
+      RANK_Training_RDS = params.ML_Classifier.BALL.RANK_Training_RDS
+      RF_Training_RDS =  params.ML_Classifier.BALL.RF_Training_RDS
+  
+     }
+     else if( params.Lineage_Type  == 'TALL' )
+     {
 
-<!DOCTYPE html>
-<html class="" lang="en">
-<head prefix="og: http://ogp.me/ns#">
-<meta charset="utf-8">
-<title>DIVIA.nf · main · Wenchao Zhang / Nextflow_PAN_DIVIA_RHEL8 · GitLab</title>
-<link rel="preload" href="/assets/application_utilities-40332a5b8b231ef4aa3e61942c84552407facf300fe4081ae0d70a5517018bd4.css" as="style" type="text/css">
-<link rel="preload" href="/assets/application-ba1723ee38768ca6dcce3e345b1f4cef7372520f2adbb0b5be32a0e6a2b6d5df.css" as="style" type="text/css">
-<link rel="preload" href="/assets/highlight/themes/white-e4a0a599c798742d5817c43bbc1ddf7745ac1b7f9c4fadf6e24a6b9bc49ffec4.css" as="style" type="text/css">
-
-<meta content="IE=edge" http-equiv="X-UA-Compatible">
-<script>
-//<![CDATA[
-var gl = window.gl || {};
-gl.startup_calls = null;
-gl.startup_graphql_calls = [{"query":"query getBlobInfo(\n  $projectPath: ID!\n  $filePath: String!\n  $ref: String!\n  $shouldFetchRawText: Boolean!\n) {\n  project(fullPath: $projectPath) {\n    __typename\n    id\n    repository {\n      __typename\n      empty\n      blobs(paths: [$filePath], ref: $ref) {\n        __typename\n        nodes {\n          __typename\n          id\n          webPath\n          name\n          size\n          rawSize\n          rawTextBlob @include(if: $shouldFetchRawText)\n          fileType\n          language\n          path\n          blamePath\n          editBlobPath\n          gitpodBlobUrl\n          ideEditPath\n          forkAndEditPath\n          ideForkAndEditPath\n          codeNavigationPath\n          projectBlobPathRoot\n          forkAndViewPath\n          environmentFormattedExternalUrl\n          environmentExternalUrlForRouteMap\n          canModifyBlob\n          canCurrentUserPushToBranch\n          archived\n          storedExternally\n          externalStorage\n          externalStorageUrl\n          rawPath\n          replacePath\n          pipelineEditorPath\n          simpleViewer {\n            fileType\n            tooLarge\n            type\n            renderError\n          }\n          richViewer {\n            fileType\n            tooLarge\n            type\n            renderError\n          }\n        }\n      }\n    }\n  }\n}\n","variables":{"projectPath":"wzhang42/nextflow_pan_divia_rhel8","ref":"main","filePath":"DIVIA.nf","shouldFetchRawText":true}}];
-
-if (gl.startup_calls && window.fetch) {
-  Object.keys(gl.startup_calls).forEach(apiCall => {
-   gl.startup_calls[apiCall] = {
-      fetchCall: fetch(apiCall, {
-        // Emulate XHR for Rails AJAX request checks
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        // fetch won’t send cookies in older browsers, unless you set the credentials init option.
-        // We set to `same-origin` which is default value in modern browsers.
-        // See https://github.com/whatwg/fetch/pull/585 for more information.
-        credentials: 'same-origin'
-      })
-    };
-  });
-}
-if (gl.startup_graphql_calls && window.fetch) {
-  const headers = {"X-CSRF-Token":"nnFtavI5d8BMxPHEbrEh4z88LC14bZNVXyWxBoNMFZid0r-uKAO5D9XCyJchlmbTMxy-0xgrxgfH_U1s1MNaKg","x-gitlab-feature-category":"source_code_management"};
-  const url = `https://phoebe.stjude.org/api/graphql`
-
-  const opts = {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    }
-  };
-
-  gl.startup_graphql_calls = gl.startup_graphql_calls.map(call => ({
-    ...call,
-    fetchCall: fetch(url, {
-      ...opts,
-      credentials: 'same-origin',
-      body: JSON.stringify(call)
-    })
-  }))
+       RANK_Training_RDS = params.ML_Classifier.TALL.RANK_Training_RDS
+       RF_Training_RDS =  params.ML_Classifier.TALL.RF_Training_RDS
+     }
+     else if( params.Lineage_Type  == 'AML' )
+     {
+        RANK_Training_RDS= params.ML_Classifier.AML.RANK_Training_RDS
+        RF_Training_RDS= params.ML_Classifier.AML.RF_Training_RDS
+     }
+     else
+     {
+        error "Invalid Lineage_Type: ${params.Lineage_Type}"
+        exit 1
+     }
 }
 
-
-//]]>
-</script>
-
-<link rel="prefetch" href="/assets/webpack/monaco.81309c4d.chunk.js">
-<link rel="shortcut icon" type="image/png" href="/assets/favicon-72a2cad5025aa931d6ea56c3201d1f18e68a8cd39788c7c80d5b2b82aa5143ef.png" id="favicon" data-original-href="/assets/favicon-72a2cad5025aa931d6ea56c3201d1f18e68a8cd39788c7c80d5b2b82aa5143ef.png" />
-<style>
-@keyframes blinking-dot{0%{opacity:1}25%{opacity:0.4}75%{opacity:0.4}100%{opacity:1}}@keyframes gl-spinner-rotate{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}body.ui-indigo{--gl-theme-accent: #6666c4}body.ui-indigo .navbar-gitlab{background-color:#292961}body.ui-indigo .navbar-gitlab .navbar-collapse{color:#d1d1f0}body.ui-indigo .navbar-gitlab .container-fluid .navbar-toggler{border-left:1px solid #6868b9;color:#d1d1f0}body.ui-indigo .navbar-gitlab .navbar-sub-nav>li>a:hover,body.ui-indigo .navbar-gitlab .navbar-sub-nav>li>a:focus,body.ui-indigo .navbar-gitlab .navbar-sub-nav>li>button:hover,body.ui-indigo .navbar-gitlab .navbar-sub-nav>li>button:focus,body.ui-indigo .navbar-gitlab .navbar-nav>li>a:hover,body.ui-indigo .navbar-gitlab .navbar-nav>li>a:focus,body.ui-indigo .navbar-gitlab .navbar-nav>li>button:hover,body.ui-indigo .navbar-gitlab .navbar-nav>li>button:focus{background-color:rgba(209,209,240,0.2)}body.ui-indigo .navbar-gitlab .navbar-sub-nav>li.active>a,body.ui-indigo .navbar-gitlab .navbar-sub-nav>li.active>button,body.ui-indigo .navbar-gitlab .navbar-sub-nav>li.dropdown.show>a,body.ui-indigo .navbar-gitlab .navbar-sub-nav>li.dropdown.show>button,body.ui-indigo .navbar-gitlab .navbar-nav>li.active>a,body.ui-indigo .navbar-gitlab .navbar-nav>li.active>button,body.ui-indigo .navbar-gitlab .navbar-nav>li.dropdown.show>a,body.ui-indigo .navbar-gitlab .navbar-nav>li.dropdown.show>button{color:#292961;background-color:#fff}body.ui-indigo .navbar-gitlab .navbar-sub-nav>li.line-separator,body.ui-indigo .navbar-gitlab .navbar-nav>li.line-separator{border-left:1px solid rgba(209,209,240,0.2)}body.ui-indigo .navbar-gitlab .navbar-sub-nav{color:#d1d1f0}body.ui-indigo .navbar-gitlab .nav>li{color:#d1d1f0}body.ui-indigo .navbar-gitlab .nav>li.header-search-new{color:#333238}body.ui-indigo .navbar-gitlab .nav>li>a .notification-dot{border:2px solid #292961}body.ui-indigo .navbar-gitlab .nav>li>a.header-help-dropdown-toggle .notification-dot{background-color:#d1d1f0}body.ui-indigo .navbar-gitlab .nav>li>a.header-user-dropdown-toggle .header-user-avatar{border-color:#d1d1f0}@media (min-width: 576px){body.ui-indigo .navbar-gitlab .nav>li>a:hover,body.ui-indigo .navbar-gitlab .nav>li>a:focus{background-color:rgba(209,209,240,0.2)}}body.ui-indigo .navbar-gitlab .nav>li>a:hover svg,body.ui-indigo .navbar-gitlab .nav>li>a:focus svg{fill:currentColor}body.ui-indigo .navbar-gitlab .nav>li>a:hover .notification-dot,body.ui-indigo .navbar-gitlab .nav>li>a:focus .notification-dot{will-change:border-color, background-color;border-color:#4a4a82}body.ui-indigo .navbar-gitlab .nav>li>a.header-help-dropdown-toggle:hover .notification-dot,body.ui-indigo .navbar-gitlab .nav>li>a.header-help-dropdown-toggle:focus .notification-dot{background-color:#fff}body.ui-indigo .navbar-gitlab .nav>li.active>a,body.ui-indigo .navbar-gitlab .nav>li.dropdown.show>a{color:#292961;background-color:#fff}body.ui-indigo .navbar-gitlab .nav>li.active>a:hover svg,body.ui-indigo .navbar-gitlab .nav>li.dropdown.show>a:hover svg{fill:#292961}body.ui-indigo .navbar-gitlab .nav>li.active>a .notification-dot,body.ui-indigo .navbar-gitlab .nav>li.dropdown.show>a .notification-dot{border-color:#fff}body.ui-indigo .navbar-gitlab .nav>li.active>a.header-help-dropdown-toggle .notification-dot,body.ui-indigo .navbar-gitlab .nav>li.dropdown.show>a.header-help-dropdown-toggle .notification-dot{background-color:#292961}body.ui-indigo .navbar-gitlab .nav>li .impersonated-user svg,body.ui-indigo .navbar-gitlab .nav>li .impersonated-user:hover svg{fill:#292961}body.ui-indigo .navbar .title>a:hover,body.ui-indigo .navbar .title>a:focus{background-color:rgba(209,209,240,0.2)}body.ui-indigo .header-search{background-color:rgba(209,209,240,0.2) !important;border-radius:4px}body.ui-indigo .header-search:hover{background-color:rgba(209,209,240,0.3) !important}body.ui-indigo .header-search.is-focused input{background-color:#fff;color:#333238 !important;box-shadow:inset 0 0 0 1px #333238}body.ui-indigo .header-search.is-focused input:focus{box-shadow:inset 0 0 0 1px #333238, 0 0 0 1px #fff, 0 0 0 3px #428fdc}body.ui-indigo .header-search.is-focused input::placeholder{color:#89888d}body.ui-indigo .header-search svg.gl-search-box-by-type-search-icon{color:rgba(209,209,240,0.8)}body.ui-indigo .header-search input{background-color:transparent;color:rgba(209,209,240,0.8);box-shadow:inset 0 0 0 1px rgba(209,209,240,0.4)}body.ui-indigo .header-search input::placeholder{color:rgba(209,209,240,0.8)}body.ui-indigo .header-search input:focus::placeholder,body.ui-indigo .header-search input:active::placeholder{color:#89888d}body.ui-indigo .header-search .keyboard-shortcut-helper{color:#d1d1f0;background-color:rgba(209,209,240,0.2)}body.ui-indigo .search form{background-color:rgba(209,209,240,0.2)}body.ui-indigo .search form:hover{background-color:rgba(209,209,240,0.3)}body.ui-indigo .search .search-input::placeholder{color:rgba(209,209,240,0.8)}body.ui-indigo .search .search-input-wrap .search-icon,body.ui-indigo .search .search-input-wrap .clear-icon{fill:rgba(209,209,240,0.8)}body.ui-indigo .search.search-active form{background-color:#fff}body.ui-indigo .search.search-active .search-input-wrap .search-icon{fill:rgba(209,209,240,0.8)}body.ui-indigo .search-sidebar .nav-link.active,body.ui-indigo .search-sidebar .nav-link:hover{background-color:rgba(236,236,239,0.8);color:#333238}body.ui-indigo .nav-sidebar li.active>a{color:#333238}body.ui-indigo .nav-sidebar .fly-out-top-item a,body.ui-indigo .nav-sidebar .fly-out-top-item a:hover,body.ui-indigo .nav-sidebar .fly-out-top-item.active a,body.ui-indigo .nav-sidebar .fly-out-top-item .fly-out-top-item-container{background-color:var(--gray-100, #ececef);color:var(--gray-900, #333238)}body.ui-indigo .branch-header-title{color:#4b4ba3}body.ui-indigo .ide-sidebar-link.active{color:#4b4ba3}body.ui-indigo .ide-sidebar-link.active.is-right{box-shadow:inset -3px 0 #4b4ba3}
-
-*,*::before,*::after{box-sizing:border-box}html{font-family:sans-serif;line-height:1.15}aside,header{display:block}body{margin:0;font-family:var(--default-regular-font, -apple-system),BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",Ubuntu,Cantarell,"Helvetica Neue",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";font-size:1rem;font-weight:400;line-height:1.5;color:#333238;text-align:left;background-color:#fff}ul{margin-top:0;margin-bottom:1rem}ul ul{margin-bottom:0}strong{font-weight:bolder}a{color:#1f75cb;text-decoration:none;background-color:transparent}a:not([href]):not([class]){color:inherit;text-decoration:none}kbd{font-family:var(--default-mono-font, "Menlo"),"DejaVu Sans Mono","Liberation Mono","Consolas","Ubuntu Mono","Courier New","andale mono","lucida console",monospace;font-size:1em}img{vertical-align:middle;border-style:none}svg{overflow:hidden;vertical-align:middle}button{border-radius:0}input,button{margin:0;font-family:inherit;font-size:inherit;line-height:inherit}button,input{overflow:visible}button{text-transform:none}[role="button"]{cursor:pointer}button:not(:disabled),[type="button"]:not(:disabled){cursor:pointer}button::-moz-focus-inner,[type="button"]::-moz-focus-inner{padding:0;border-style:none}[type="search"]{outline-offset:-2px}.list-unstyled{padding-left:0;list-style:none}kbd{padding:0.2rem 0.4rem;font-size:90%;color:#fff;background-color:#333238;border-radius:0.2rem}kbd kbd{padding:0;font-size:100%;font-weight:600}.container-fluid{width:100%;padding-right:15px;padding-left:15px;margin-right:auto;margin-left:auto}.form-control{display:block;width:100%;height:32px;padding:0.375rem 0.75rem;font-size:0.875rem;font-weight:400;line-height:1.5;color:#333238;background-color:#fff;background-clip:padding-box;border:1px solid #89888d;border-radius:0.25rem}.form-control::placeholder{color:#626168;opacity:1}.form-control:disabled{background-color:#fbfafd;opacity:1}.btn{display:inline-block;font-weight:400;color:#333238;text-align:center;vertical-align:middle;-webkit-user-select:none;user-select:none;background-color:transparent;border:1px solid transparent;padding:0.375rem 0.75rem;font-size:1rem;line-height:20px;border-radius:0.25rem}.btn:disabled{opacity:0.65}.btn:not(:disabled):not(.disabled){cursor:pointer}.collapse:not(.show){display:none}.dropdown{position:relative}.dropdown-menu{position:absolute;top:100%;left:0;z-index:1000;display:none;float:left;min-width:10rem;padding:0.5rem 0;margin:0.125rem 0 0;font-size:1rem;color:#333238;text-align:left;list-style:none;background-color:#fff;background-clip:padding-box;border:1px solid rgba(0,0,0,0.15);border-radius:0.25rem}.nav{display:flex;flex-wrap:wrap;padding-left:0;margin-bottom:0;list-style:none}.navbar{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:0.25rem 0.5rem}.navbar .container-fluid{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between}.navbar-nav{display:flex;flex-direction:column;padding-left:0;margin-bottom:0;list-style:none}.navbar-nav .dropdown-menu{position:static;float:none}.navbar-collapse{flex-basis:100%;flex-grow:1;align-items:center}.navbar-toggler{padding:0.25rem 0.75rem;font-size:1.25rem;line-height:1;background-color:transparent;border:1px solid transparent;border-radius:0.25rem}@media (max-width: 575.98px){.navbar-expand-sm>.container-fluid{padding-right:0;padding-left:0}}@media (min-width: 576px){.navbar-expand-sm{flex-flow:row nowrap;justify-content:flex-start}.navbar-expand-sm .navbar-nav{flex-direction:row}.navbar-expand-sm .navbar-nav .dropdown-menu{position:absolute}.navbar-expand-sm>.container-fluid{flex-wrap:nowrap}.navbar-expand-sm .navbar-collapse{display:flex !important;flex-basis:auto}.navbar-expand-sm .navbar-toggler{display:none}}.badge{display:inline-block;padding:0.25em 0.4em;font-size:75%;font-weight:600;line-height:1;text-align:center;white-space:nowrap;vertical-align:baseline;border-radius:0.25rem}.badge:empty{display:none}.btn .badge{position:relative;top:-1px}.badge-pill{padding-right:0.6em;padding-left:0.6em;border-radius:10rem}.badge-success{color:#fff;background-color:#108548}.badge-info{color:#fff;background-color:#1f75cb}.badge-warning{color:#fff;background-color:#ab6100}.rounded-circle{border-radius:50% !important}.d-none{display:none !important}.d-block{display:block !important}@media (min-width: 576px){.d-sm-none{display:none !important}.d-sm-inline-block{display:inline-block !important}}@media (min-width: 768px){.d-md-block{display:block !important}}@media (min-width: 992px){.d-lg-none{display:none !important}}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;border:0}.gl-avatar{border-width:1px;border-style:solid;border-color:rgba(31,30,36,0.08);overflow:hidden;flex-shrink:0}.gl-avatar-s24{width:1.5rem;height:1.5rem;font-size:0.75rem;line-height:1rem;border-radius:0.25rem}.gl-avatar-circle{border-radius:50%}.gl-badge{display:inline-flex;align-items:center;font-size:0.75rem;font-weight:400;line-height:1rem;padding-top:0.25rem;padding-bottom:0.25rem;padding-left:0.5rem;padding-right:0.5rem}.gl-badge.sm{padding-top:0;padding-bottom:0}.gl-badge.badge-info{background-color:#cbe2f9;color:#0b5cad}a.gl-badge.badge-info.active,a.gl-badge.badge-info:active{color:#033464;background-color:#9dc7f1}a.gl-badge.badge-info:active{box-shadow:0 0 0 1px #fff, 0 0 0 3px #428fdc;outline:none}.gl-badge.badge-success{background-color:#c3e6cd;color:#24663b}a.gl-badge.badge-success.active,a.gl-badge.badge-success:active{color:#0a4020;background-color:#91d4a8}a.gl-badge.badge-success:active{box-shadow:0 0 0 1px #fff, 0 0 0 3px #428fdc;outline:none}.gl-badge.badge-warning{background-color:#f5d9a8;color:#8f4700}a.gl-badge.badge-warning.active,a.gl-badge.badge-warning:active{color:#5c2900;background-color:#e9be74}a.gl-badge.badge-warning:active{box-shadow:0 0 0 1px #fff, 0 0 0 3px #428fdc;outline:none}.gl-button .gl-badge{top:0}.gl-form-input,.gl-form-input.form-control{background-color:#fff;font-family:var(--default-regular-font, -apple-system),BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",Ubuntu,Cantarell,"Helvetica Neue",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";font-size:0.875rem;line-height:1rem;padding-top:0.5rem;padding-bottom:0.5rem;padding-left:0.75rem;padding-right:0.75rem;height:auto;color:#333238;box-shadow:inset 0 0 0 1px #89888d;border-style:none;-webkit-appearance:none;appearance:none;-moz-appearance:none}.gl-form-input:disabled,.gl-form-input:not(.form-control-plaintext):not([type="color"]):read-only,.gl-form-input.form-control:disabled,.gl-form-input.form-control:not(.form-control-plaintext):not([type="color"]):read-only{background-color:#fbfafd;box-shadow:inset 0 0 0 1px #dcdcde}.gl-form-input:disabled,.gl-form-input.form-control:disabled{cursor:not-allowed;color:#737278}.gl-form-input::placeholder,.gl-form-input.form-control::placeholder{color:#89888d}.gl-icon{fill:currentColor}.gl-icon.s12{width:12px;height:12px}.gl-icon.s16{width:16px;height:16px}.gl-icon.s32{width:32px;height:32px}.gl-link{font-size:0.875rem;color:#1f75cb}.gl-link:active{color:#0b5cad}.gl-link:active{text-decoration:underline;outline:2px solid #428fdc;outline-offset:2px}.gl-button{display:inline-flex}.gl-button:not(.btn-link):active{text-decoration:none}.gl-button.gl-button{border-width:0;padding-top:0.5rem;padding-bottom:0.5rem;padding-left:0.75rem;padding-right:0.75rem;background-color:transparent;line-height:1rem;color:#333238;fill:currentColor;box-shadow:inset 0 0 0 1px #bfbfc3;justify-content:center;align-items:center;font-size:0.875rem;border-radius:0.25rem}.gl-button.gl-button .gl-button-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-top:1px;padding-bottom:1px;margin-top:-1px;margin-bottom:-1px}.gl-button.gl-button.btn-default{background-color:#fff}.gl-button.gl-button.btn-default:active,.gl-button.gl-button.btn-default.active{box-shadow:inset 0 0 0 1px #626168, 0 0 0 1px #fff, 0 0 0 3px #428fdc;outline:none;background-color:#dcdcde}.gl-button.gl-button.btn-default:active .gl-icon,.gl-button.gl-button.btn-default.active .gl-icon{color:#333238}.gl-button.gl-button.btn-default .gl-icon{color:#737278}.gl-search-box-by-type-search-icon{color:#737278;width:1rem;position:absolute;left:0.5rem;top:calc(50% - 16px / 2)}.gl-search-box-by-type{display:flex;position:relative}.gl-search-box-by-type-input,.gl-search-box-by-type-input.gl-form-input{height:2rem;padding-right:2rem;padding-left:1.75rem}body{font-size:0.875rem}button,html [type="button"],[role="button"]{cursor:pointer}strong{font-weight:bold}svg{vertical-align:baseline}.form-control{font-size:0.875rem}.hidden{display:none !important;visibility:hidden !important}.badge:not(.gl-badge){padding:4px 5px;font-size:12px;font-style:normal;font-weight:400;display:inline-block}.divider{height:0;margin:4px 0;overflow:hidden;border-top:1px solid #dcdcde}.toggle-sidebar-button .collapse-text,.toggle-sidebar-button .icon-chevron-double-lg-left{color:#737278}html{overflow-y:scroll}.layout-page{padding-top:calc( var(--header-height, 48px) + calc(var(--system-header-height) + var(--performance-bar-height)) + var(--top-bar-height));padding-bottom:var(--system-footer-height)}@media (min-width: 576px){.logged-out-marketing-header{--header-height: 72px}}.btn{border-radius:4px;font-size:0.875rem;font-weight:400;padding:6px 10px;background-color:#fff;border-color:#dcdcde;color:#333238;color:#333238;white-space:nowrap}.btn:active{background-color:#ececef;box-shadow:none}.btn:active,.btn.active{background-color:#e6e6ea;border-color:#dedee3;color:#333238}.btn svg{height:15px;width:15px}.btn svg:not(:last-child){margin-right:5px}.badge.badge-pill:not(.gl-badge){font-weight:400;background-color:rgba(0,0,0,0.07);color:#535158;vertical-align:baseline}:root{--performance-bar-height: 0px;--system-header-height: 0px;--top-bar-height: 0px;--system-footer-height: 0px;--mr-review-bar-height: 0px}.with-top-bar{--top-bar-height: 48px}.gl-font-sm{font-size:12px}.dropdown{position:relative}.dropdown-menu{display:none;position:absolute;width:auto;top:100%;z-index:300;min-width:240px;max-width:500px;margin-top:4px;margin-bottom:24px;font-size:0.875rem;font-weight:400;padding:8px 0;background-color:#fff;border:1px solid #dcdcde;border-radius:0.25rem;box-shadow:0 2px 4px rgba(0,0,0,0.1)}.dropdown-menu ul{margin:0;padding:0}.dropdown-menu li{display:block;text-align:left;list-style:none}.dropdown-menu li>a,.dropdown-menu li>button{background:transparent;border:0;border-radius:0;box-shadow:none;display:block;font-weight:400;position:relative;padding:8px 12px;color:#333238;line-height:16px;white-space:normal;overflow:hidden;text-align:left;width:100%}.dropdown-menu li>a:active,.dropdown-menu li>button:active{background-color:#ececef;color:#333238;outline:0;text-decoration:none}.dropdown-menu li>a:active,.dropdown-menu li>button:active{box-shadow:inset 0 0 0 2px #428fdc, inset 0 0 0 3px #fff, inset 0 0 0 1px #fff;outline:none}.dropdown-menu .divider{height:1px;margin:0.25rem 0;padding:0;background-color:#dcdcde}.dropdown-menu .badge.badge-pill+span:not(.badge):not(.badge-pill){margin-right:40px}@media (max-width: 575.98px){.navbar-gitlab li.dropdown{position:static}.navbar-gitlab li.dropdown.user-counter{margin-left:8px !important}.navbar-gitlab li.dropdown.user-counter>a{padding:0 4px !important}header.navbar-gitlab .dropdown .dropdown-menu{width:100%;min-width:100%}}input{border-radius:0.25rem;color:#333238;background-color:#fff}input[type="search"]{-webkit-appearance:textfield;appearance:textfield}.form-control{border-radius:4px;padding:6px 10px}.form-control::placeholder{color:#89888d}kbd{display:inline-block;padding:3px 5px;font-size:0.75rem;line-height:10px;color:var(--gray-700, #535158);vertical-align:unset;background-color:var(--gray-10, #fbfafd);border-width:1px;border-style:solid;border-color:var(--gray-100, #dcdcde) var(--gray-100, #dcdcde) var(--gray-200, #bfbfc3);border-image:none;border-radius:3px;box-shadow:0 -1px 0 var(--gray-200, #bfbfc3) inset}.navbar-gitlab{padding:0 16px;z-index:1000;margin-bottom:0;min-height:var(--header-height, 48px);border:0;position:fixed;top:calc(var(--system-header-height) + var(--performance-bar-height));left:0;right:0;border-radius:0}.navbar-gitlab .close-icon{display:none}.navbar-gitlab .header-content{width:100%;display:flex;justify-content:space-between;position:relative;min-height:var(--header-height, 48px);padding-left:0}.navbar-gitlab .header-content .title{padding-right:0;color:currentColor;display:flex;position:relative;margin:0;font-size:18px;vertical-align:top;white-space:nowrap}.navbar-gitlab .header-content .title img{height:24px}.navbar-gitlab .header-content .title a:not(.canary-badge){display:flex;align-items:center;padding:2px 8px;margin:4px 2px 4px -8px;border-radius:4px}.navbar-gitlab .header-content .title a:not(.canary-badge):active{box-shadow:0 0 0 1px rgba(0,0,0,0.6),0 0 0 3px #63a6e9;outline:none}.navbar-gitlab .header-content .navbar-collapse>ul.nav>li:not(.d-none){margin:0 2px}.navbar-gitlab .header-search{min-width:320px}@media (min-width: 768px) and (max-width: 1199.98px){.navbar-gitlab .header-search{min-width:200px}}.navbar-gitlab .header-search .keyboard-shortcut-helper{transform:translateY(calc(50% - 2px));box-shadow:none;border-color:transparent}.navbar-gitlab .navbar-collapse{flex:0 0 auto;border-top:0;padding:0}@media (max-width: 575.98px){.navbar-gitlab .navbar-collapse{flex:1 1 auto}}.navbar-gitlab .navbar-collapse .nav{flex-wrap:nowrap}@media (max-width: 575.98px){.navbar-gitlab .navbar-collapse .nav>li:not(.d-none) a{margin-left:0}}.navbar-gitlab .container-fluid{padding:0}.navbar-gitlab .container-fluid .user-counter svg{margin-right:3px}.navbar-gitlab .container-fluid .navbar-toggler{position:relative;right:-10px;border-radius:0;min-width:45px;padding:0;margin:8px 8px 8px 0;font-size:14px;text-align:center;color:currentColor}.navbar-gitlab .container-fluid .navbar-toggler.active{color:currentColor;background-color:transparent}@media (max-width: 575.98px){.navbar-gitlab .container-fluid .navbar-nav{display:flex;padding-right:10px;flex-direction:row}}.navbar-gitlab .container-fluid .navbar-nav li .badge.badge-pill:not(.gl-badge){box-shadow:none;font-weight:600}@media (max-width: 575.98px){.navbar-gitlab .container-fluid .nav>li.header-user{padding-left:10px}}.navbar-gitlab .container-fluid .nav>li>a{will-change:color;margin:4px 0;padding:6px 8px;height:32px}@media (max-width: 575.98px){.navbar-gitlab .container-fluid .nav>li>a{padding:0}}.navbar-gitlab .container-fluid .nav>li>a.header-user-dropdown-toggle{margin-left:2px}.navbar-gitlab .container-fluid .nav>li>a.header-user-dropdown-toggle .header-user-avatar{margin-right:0}.navbar-gitlab .container-fluid .nav>li .header-new-dropdown-toggle{margin-right:0}.navbar-sub-nav>li>a,.navbar-sub-nav>li>button,.navbar-nav>li>a,.navbar-nav>li>button{display:flex;align-items:center;justify-content:center;padding:6px 8px;margin:4px 2px;font-size:12px;color:currentColor;border-radius:4px;height:32px;font-weight:600}.navbar-sub-nav>li>a:active,.navbar-sub-nav>li>button:active,.navbar-nav>li>a:active,.navbar-nav>li>button:active{box-shadow:0 0 0 1px rgba(0,0,0,0.6),0 0 0 3px #63a6e9;outline:none}.navbar-sub-nav>li .top-nav-toggle,.navbar-sub-nav>li>button,.navbar-nav>li .top-nav-toggle,.navbar-nav>li>button{background:transparent;border:0}.navbar-sub-nav .dropdown-menu,.navbar-nav .dropdown-menu{position:absolute}.navbar-sub-nav{display:flex;align-items:center;height:100%;margin:0 0 0 6px}.caret-down,.btn .caret-down{top:0;height:11px;width:11px;margin-left:4px;fill:currentColor}.header-user .dropdown-menu,.header-new .dropdown-menu{margin-top:4px}@media (max-width: 575.98px){.navbar-gitlab .container-fluid{font-size:18px}.navbar-gitlab .container-fluid .navbar-nav{table-layout:fixed;width:100%;margin:0;text-align:right}.navbar-gitlab .container-fluid .navbar-collapse{margin-left:-8px;margin-right:-10px}.navbar-gitlab .container-fluid .navbar-collapse .nav>li:not(.d-none){flex:1}.header-user-dropdown-toggle{text-align:center}.header-user-avatar{float:none}}.header-user-avatar{float:left;margin-right:5px;border-radius:50%;border:1px solid #f2f2f4}.notification-dot{background-color:#d99530;height:12px;width:12px;pointer-events:none;visibility:hidden;top:3px}.tanuki-logo .tanuki{fill:#e24329}.tanuki-logo .left-cheek,.tanuki-logo .right-cheek{fill:#fc6d26}.tanuki-logo .chin{fill:#fca326}.context-header{position:relative;margin-right:2px;width:256px}.context-header>a,.context-header>button{font-weight:600;display:flex;width:100%;align-items:center;padding:10px 16px 10px 10px;color:#333238;background-color:transparent;border:0;text-align:left}.context-header .avatar-container{flex:0 0 32px;background-color:#fff}.context-header .sidebar-context-title{overflow:hidden;text-overflow:ellipsis;color:#333238}@media (min-width: 768px){.page-with-contextual-sidebar{padding-left:56px}}@media (min-width: 1200px){.page-with-contextual-sidebar{padding-left:256px}}@media (min-width: 768px){.page-with-icon-sidebar{padding-left:56px}}.nav-sidebar{position:fixed;bottom:var(--system-footer-height);left:0;z-index:600;width:256px;top:calc( var(--header-height, 48px) + calc(var(--system-header-height) + var(--performance-bar-height)) + var(--top-bar-height));background-color:#fbfafd;border-right:1px solid #e9e9e9;transform:translate3d(0, 0, 0)}.nav-sidebar.sidebar-collapsed-desktop{width:56px}.nav-sidebar.sidebar-collapsed-desktop .nav-sidebar-inner-scroll{overflow-x:hidden}.nav-sidebar.sidebar-collapsed-desktop .badge.badge-pill:not(.fly-out-badge),.nav-sidebar.sidebar-collapsed-desktop .nav-item-name,.nav-sidebar.sidebar-collapsed-desktop .collapse-text{border:0;clip:rect(0, 0, 0, 0);height:1px;margin:-1px;overflow:hidden;padding:0;position:absolute;white-space:nowrap;width:1px}.nav-sidebar.sidebar-collapsed-desktop .sidebar-top-level-items>li>a{min-height:unset}.nav-sidebar.sidebar-collapsed-desktop .fly-out-top-item:not(.divider){display:block !important}.nav-sidebar.sidebar-collapsed-desktop .avatar-container{margin:0 auto}.nav-sidebar.sidebar-collapsed-desktop li.active:not(.fly-out-top-item)>a{background-color:rgba(41,41,97,0.08)}.nav-sidebar a{text-decoration:none;color:#333238}.nav-sidebar li{white-space:nowrap}.nav-sidebar li .nav-item-name{flex:1;overflow:hidden;text-overflow:ellipsis}.nav-sidebar li>a,.nav-sidebar li>.fly-out-top-item-container{height:2rem;padding-left:0.75rem;padding-right:0.75rem;display:flex;align-items:center;border-radius:0.25rem;width:auto;margin:1px 8px}.nav-sidebar li.active>a{font-weight:600}.nav-sidebar li.active:not(.fly-out-top-item)>a:not(.has-sub-items){background-color:rgba(31,30,36,0.08)}.nav-sidebar ul{padding-left:0;list-style:none}@media (max-width: 767.98px){.nav-sidebar{left:-256px}}.nav-sidebar .nav-icon-container{display:flex;margin-right:8px}.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item{display:none}.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item a,.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item.active a,.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item .fly-out-top-item-container{margin-left:0;margin-right:0;padding-left:1rem;padding-right:1rem;cursor:default;pointer-events:none;font-size:0.75rem;margin-top:-0.25rem;margin-bottom:-0.25rem;margin-top:0;position:relative;color:#fff;background:var(--black, #000)}.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item a strong,.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item.active a strong,.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item .fly-out-top-item-container strong{font-weight:400}.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item a::before,.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item.active a::before,.nav-sidebar a:not(.has-sub-items)+.sidebar-sub-level-items .fly-out-top-item .fly-out-top-item-container::before{position:absolute;content:"";display:block;top:50%;left:-0.25rem;margin-top:-0.25rem;width:0;height:0;border-top:0.25rem solid transparent;border-bottom:0.25rem solid transparent;border-right:0.25rem solid #000;border-right-color:var(--black, #000)}@media (min-width: 576px){.nav-sidebar a.has-sub-items+.sidebar-sub-level-items{min-width:150px}}.nav-sidebar a.has-sub-items+.sidebar-sub-level-items .fly-out-top-item{display:none}.nav-sidebar a.has-sub-items+.sidebar-sub-level-items .fly-out-top-item a,.nav-sidebar a.has-sub-items+.sidebar-sub-level-items .fly-out-top-item.active a,.nav-sidebar a.has-sub-items+.sidebar-sub-level-items .fly-out-top-item .fly-out-top-item-container{margin-left:0;margin-right:0;padding-left:1rem;padding-right:1rem;cursor:default;pointer-events:none;font-size:0.75rem;margin-top:0;border-bottom-left-radius:0;border-bottom-right-radius:0}@media (min-width: 768px) and (max-width: 1199px){.nav-sidebar:not(.sidebar-expanded-mobile){width:56px}.nav-sidebar:not(.sidebar-expanded-mobile) .nav-sidebar-inner-scroll{overflow-x:hidden}.nav-sidebar:not(.sidebar-expanded-mobile) .badge.badge-pill:not(.fly-out-badge),.nav-sidebar:not(.sidebar-expanded-mobile) .nav-item-name,.nav-sidebar:not(.sidebar-expanded-mobile) .collapse-text{border:0;clip:rect(0, 0, 0, 0);height:1px;margin:-1px;overflow:hidden;padding:0;position:absolute;white-space:nowrap;width:1px}.nav-sidebar:not(.sidebar-expanded-mobile) .sidebar-top-level-items>li>a{min-height:unset}.nav-sidebar:not(.sidebar-expanded-mobile) .fly-out-top-item:not(.divider){display:block !important}.nav-sidebar:not(.sidebar-expanded-mobile) .avatar-container{margin:0 auto}.nav-sidebar:not(.sidebar-expanded-mobile) li.active:not(.fly-out-top-item)>a{background-color:rgba(41,41,97,0.08)}.nav-sidebar:not(.sidebar-expanded-mobile) .context-header{height:60px;width:56px}.nav-sidebar:not(.sidebar-expanded-mobile) .context-header a{padding:10px 4px}.nav-sidebar:not(.sidebar-expanded-mobile) .sidebar-context-title{border:0;clip:rect(0, 0, 0, 0);height:1px;margin:-1px;overflow:hidden;padding:0;position:absolute;white-space:nowrap;width:1px}.nav-sidebar:not(.sidebar-expanded-mobile) .context-header{height:auto}.nav-sidebar:not(.sidebar-expanded-mobile) .context-header a{padding:0.25rem}.nav-sidebar:not(.sidebar-expanded-mobile) .sidebar-top-level-items>li .sidebar-sub-level-items:not(.flyout-list){display:none}.nav-sidebar:not(.sidebar-expanded-mobile) .nav-icon-container{margin-right:0}.nav-sidebar:not(.sidebar-expanded-mobile) .toggle-sidebar-button{width:55px;padding:0 21px}.nav-sidebar:not(.sidebar-expanded-mobile) .toggle-sidebar-button .collapse-text{display:none}.nav-sidebar:not(.sidebar-expanded-mobile) .toggle-sidebar-button .icon-chevron-double-lg-left{transform:rotate(180deg);margin:0}}.nav-sidebar-inner-scroll{height:100%;width:100%;overflow-x:hidden;overflow-y:auto}.nav-sidebar-inner-scroll>div.context-header{margin-top:0.25rem}.nav-sidebar-inner-scroll>div.context-header a{height:2rem;padding-left:0.75rem;padding-right:0.75rem;display:flex;align-items:center;border-radius:0.25rem;width:auto;margin:1px 8px;padding:0.25rem;margin-bottom:0.25rem;margin-top:0.125rem;height:auto}.nav-sidebar-inner-scroll>div.context-header a .avatar-container{font-weight:400;flex:none}.sidebar-top-level-items{margin-bottom:60px}.sidebar-top-level-items .context-header a{padding:0.25rem;margin-bottom:0.25rem;margin-top:0.125rem;height:auto}.sidebar-top-level-items .context-header a .avatar-container{font-weight:400;flex:none}.sidebar-top-level-items>li.active .sidebar-sub-level-items:not(.is-fly-out-only){display:block}.sidebar-top-level-items li>a.gl-link{color:#333238}.sidebar-top-level-items li>a.gl-link:active{text-decoration:none}.sidebar-sub-level-items{padding-top:0;padding-bottom:0;display:none}.sidebar-sub-level-items:not(.fly-out-list) li>a{padding-left:2.25rem}.toggle-sidebar-button,.close-nav-button{height:48px;padding:0 16px;background-color:#fbfafd;border:0;color:#737278;display:flex;align-items:center;background-color:#fbfafd;position:fixed;bottom:0;width:255px}.toggle-sidebar-button .collapse-text,.toggle-sidebar-button .icon-chevron-double-lg-left,.close-nav-button .collapse-text,.close-nav-button .icon-chevron-double-lg-left{color:inherit}.collapse-text{white-space:nowrap;overflow:hidden}.sidebar-collapsed-desktop .context-header{height:60px;width:56px}.sidebar-collapsed-desktop .context-header a{padding:10px 4px}.sidebar-collapsed-desktop .sidebar-context-title{border:0;clip:rect(0, 0, 0, 0);height:1px;margin:-1px;overflow:hidden;padding:0;position:absolute;white-space:nowrap;width:1px}.sidebar-collapsed-desktop .context-header{height:auto}.sidebar-collapsed-desktop .context-header a{padding:0.25rem}.sidebar-collapsed-desktop .sidebar-top-level-items>li .sidebar-sub-level-items:not(.flyout-list){display:none}.sidebar-collapsed-desktop .nav-icon-container{margin-right:0}.sidebar-collapsed-desktop .toggle-sidebar-button{width:55px;padding:0 21px}.sidebar-collapsed-desktop .toggle-sidebar-button .collapse-text{display:none}.sidebar-collapsed-desktop .toggle-sidebar-button .icon-chevron-double-lg-left{transform:rotate(180deg);margin:0}.close-nav-button{display:none}@media (max-width: 767.98px){.close-nav-button{display:flex}.toggle-sidebar-button{display:none}}.super-sidebar{display:flex;flex-direction:column;position:fixed;top:calc( var(--header-height, 48px) + calc(var(--system-header-height) + var(--performance-bar-height)));bottom:var(--system-footer-height);left:0;background-color:var(--gray-10, #fbfafd);border-right:1px solid rgba(31,30,36,0.08);transform:translate3d(0, 0, 0);width:256px;z-index:600}.super-sidebar.super-sidebar-loading{transform:translate3d(-100%, 0, 0)}@media (min-width: 1200px){.super-sidebar.super-sidebar-loading{transform:translate3d(0, 0, 0)}}.page-with-super-sidebar{padding-left:0}@media (min-width: 1200px){.page-with-super-sidebar{padding-left:256px}}.page-with-super-sidebar-collapsed .super-sidebar{transform:translate3d(-100%, 0, 0)}@media (min-width: 1200px){.page-with-super-sidebar-collapsed{padding-left:0}}input::-moz-placeholder{color:#89888d;opacity:1}input::-ms-input-placeholder{color:#89888d}input:-ms-input-placeholder{color:#89888d}svg{fill:currentColor}svg.s12{width:12px;height:12px}svg.s16{width:16px;height:16px}svg.s32{width:32px;height:32px}svg.s12{vertical-align:-1px}svg.s16{vertical-align:-3px}.avatar,.avatar-container{float:left;margin-right:16px;border-radius:50%}.avatar.s16,.avatar-container.s16{width:16px;height:16px;margin-right:8px}.avatar.s32,.avatar-container.s32{width:32px;height:32px;margin-right:8px}.avatar{transition-property:none;width:40px;height:40px;padding:0;background:#fefefe;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(31,30,36,0.1)}.avatar.avatar-tile{border-radius:0;border:0}.identicon{text-align:center;vertical-align:top;color:#333238;background-color:#ececef}.identicon.s16{font-size:10px;line-height:16px}.identicon.s32{font-size:14px;line-height:32px}.identicon.bg1{background-color:#fcf1ef}.identicon.bg2{background-color:#f4f0ff}.identicon.bg3{background-color:#f1f1ff}.identicon.bg4{background-color:#e9f3fc}.identicon.bg5{background-color:#ecf4ee}.identicon.bg6{background-color:#fdf1dd}.identicon.bg7{background-color:#ececef}.avatar-container{overflow:hidden;display:flex}.avatar-container a{width:100%;height:100%;display:flex;text-decoration:none}.avatar-container .avatar{border-radius:0;border:0;height:auto;width:100%;margin:0;align-self:center}.rect-avatar{border-radius:2px}.rect-avatar.s16{border-radius:2px}.rect-avatar.s16 .avatar{border-radius:2px}.rect-avatar.s32{border-radius:4px}.rect-avatar.s32 .avatar{border-radius:4px}.tab-width-8{tab-size:8}.gl-sr-only{border:0;clip:rect(0, 0, 0, 0);height:1px;margin:-1px;overflow:hidden;padding:0;position:absolute;white-space:nowrap;width:1px}.gl-border-none\!{border-style:none !important}.gl-display-none{display:none}.gl-display-flex{display:flex}@media (min-width: 992px){.gl-lg-display-flex{display:flex}}@media (min-width: 576px){.gl-sm-display-block{display:block}}@media (min-width: 992px){.gl-lg-display-block{display:block}}.gl-align-items-center{align-items:center}.gl-align-items-stretch{align-items:stretch}.gl-flex-grow-0\!{flex-grow:0 !important}.gl-flex-grow-1{flex-grow:1}.gl-flex-basis-half\!{flex-basis:50% !important}.gl-justify-content-end{justify-content:flex-end}.gl-relative{position:relative}.gl-absolute{position:absolute}.gl-top-0{top:0}.gl-right-3{right:0.5rem}.gl-w-full{width:100%}.gl-px-3{padding-left:0.5rem;padding-right:0.5rem}.gl-pr-2{padding-right:0.25rem}.gl-pt-0{padding-top:0}.gl-mr-auto{margin-right:auto}.gl-mr-3{margin-right:0.5rem}.gl-ml-n2{margin-left:-0.25rem}.gl-ml-3{margin-left:0.5rem}.gl-mx-0\!{margin-left:0 !important;margin-right:0 !important}.gl-text-right{text-align:right}.gl-white-space-nowrap{white-space:nowrap}.gl-font-sm{font-size:0.75rem}.gl-font-weight-bold{font-weight:600}.gl-z-index-1{z-index:1}.cloak-startup,.content-wrapper>.alert-wrapper,#content-body,.modal-dialog{display:none}
-
-</style>
-
-
-<link rel="stylesheet" media="print" href="/assets/application-ba1723ee38768ca6dcce3e345b1f4cef7372520f2adbb0b5be32a0e6a2b6d5df.css" />
-<link rel="stylesheet" media="print" href="/assets/page_bundles/tree-86a16f68ea7bde025a5a521d3a1332e85e8484bad7d4c52e0bd04f0ed1b3571f.css" />
-<link rel="stylesheet" media="print" href="/assets/application_utilities-40332a5b8b231ef4aa3e61942c84552407facf300fe4081ae0d70a5517018bd4.css" />
-
-
-<link rel="stylesheet" media="print" href="/assets/fonts-3dcf267c9a9dc2c5b7a0ae5b757830104751a7ece87820521d6bb22dd665b2f8.css" />
-<link rel="stylesheet" media="print" href="/assets/highlight/themes/white-e4a0a599c798742d5817c43bbc1ddf7745ac1b7f9c4fadf6e24a6b9bc49ffec4.css" />
-<script>
-//<![CDATA[
-document.querySelectorAll('link[media="print"]').forEach(linkTag => {
-  linkTag.setAttribute('data-startupcss', 'loading');
-  const startupLinkLoadedEvent = new CustomEvent('CSSStartupLinkLoaded');
-  linkTag.addEventListener('load',function(){this.media='all';this.setAttribute('data-startupcss', 'loaded');document.dispatchEvent(startupLinkLoadedEvent);},{once: true});
-})
-
-//]]>
-</script>
-
-<script>
-//<![CDATA[
-window.gon={};gon.features={"highlightJs":true,"synchronizeFork":false};
-//]]>
-</script>
-
-
-
-
-
-<script src="/assets/webpack/runtime.bcb8d514.bundle.js" defer="defer"></script>
-<script src="/assets/webpack/main.22a2cf0a.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/graphql.f59c5022.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/commons-IssuablePopoverBundle-pages.admin.application_settings-pages.admin.application_settings.ci_c-616be63e.c6e49e80.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/shortcutsBundle.91a04756.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/commons-pages.groups.boards-pages.groups.details-pages.groups.show-pages.projects-pages.projects.act-11f3e7d8.4a598f6a.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/commons-pages.admin.clusters.show-pages.admin.runners.show-pages.groups.clusters.show-pages.groups.c-468ccf19.d3f15f17.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/commons-pages.projects.blob.show-pages.projects.show-pages.projects.snippets.edit-pages.projects.sni-dd84f7c7.0a26f13d.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/commons-pages.projects.blob.show-pages.projects.show-pages.projects.snippets.show-pages.projects.tre-25c821a4.cbf41ff0.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/commons-pages.groups.show-pages.projects.blob.show-pages.projects.show-pages.projects.tree.show.38530040.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/commons-pages.projects.blob.show-pages.projects.shared.web_ide_link-pages.projects.show-pages.projec-be9a6d69.11804b3c.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/commons-pages.projects.blob.show-pages.projects.show-pages.projects.tree.show.726f94af.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/commons-pages.projects.blob.show-pages.projects.tree.show-treeList.990fc925.chunk.js" defer="defer"></script>
-<script src="/assets/webpack/pages.projects.blob.show.75706b01.chunk.js" defer="defer"></script>
-
-<meta content="object" property="og:type">
-<meta content="GitLab" property="og:site_name">
-<meta content="DIVIA.nf · main · Wenchao Zhang / Nextflow_PAN_DIVIA_RHEL8 · GitLab" property="og:title">
-<meta content="Welcome to the CAB GitLab!" property="og:description">
-<meta content="https://phoebe.stjude.org/assets/twitter_card-570ddb06edf56a2312253c5872489847a0f385112ddbcd71ccfa1570febab5d2.jpg" property="og:image">
-<meta content="64" property="og:image:width">
-<meta content="64" property="og:image:height">
-<meta content="https://phoebe.stjude.org/wzhang42/nextflow_pan_divia_rhel8/-/blob/main/DIVIA.nf" property="og:url">
-<meta content="summary" property="twitter:card">
-<meta content="DIVIA.nf · main · Wenchao Zhang / Nextflow_PAN_DIVIA_RHEL8 · GitLab" property="twitter:title">
-<meta content="Welcome to the CAB GitLab!" property="twitter:description">
-<meta content="https://phoebe.stjude.org/assets/twitter_card-570ddb06edf56a2312253c5872489847a0f385112ddbcd71ccfa1570febab5d2.jpg" property="twitter:image">
-
-<meta content="Welcome to the CAB GitLab!" name="description">
-<link href="/-/manifest.json" rel="manifest">
-<meta content="width=device-width, initial-scale=1, maximum-scale=1" name="viewport">
-<meta content="#292961" name="theme-color">
-<meta name="csrf-param" content="authenticity_token" />
-<meta name="csrf-token" content="OXfDJNGKd11FDjYI1U7pZEKDPVNMd5IjZNfaXTI_dgc61BHgC7C5ktwID1uaaa5UTqOvrSwxx3H8DyY3ZbA5tQ" />
-<meta name="csp-nonce" />
-<meta name="action-cable-url" content="/-/cable" />
-<link rel="apple-touch-icon" type="image/x-icon" href="/assets/apple-touch-icon-b049d4bc0dd9626f31db825d61880737befc7835982586d015bded10b4435460.png" />
-<link href="/search/opensearch.xml" rel="search" title="Search GitLab" type="application/opensearchdescription+xml">
-
-
-
-
-
-</head>
-
-<body class="ui-indigo tab-width-8 gl-browser-safari gl-platform-mac" data-find-file="/wzhang42/nextflow_pan_divia_rhel8/-/find_file/main" data-namespace-id="44" data-page="projects:blob:show" data-page-type-id="main/DIVIA.nf" data-project="nextflow_pan_divia_rhel8" data-project-id="73">
-
-<script>
-//<![CDATA[
-gl = window.gl || {};
-gl.client = {"isSafari":true,"isMac":true};
-
-
-//]]>
-</script>
-
-
-
-<header class="navbar navbar-gitlab navbar-expand-sm js-navbar" data-qa-selector="navbar">
-<a class="gl-sr-only gl-accessibility" href="#content-body">Skip to content</a>
-<div class="container-fluid">
-<div class="header-content js-header-content">
-<div class="title-container hide-when-top-nav-responsive-open gl-transition-medium gl-display-flex gl-align-items-stretch gl-pt-0 gl-mr-3">
-<div class="title">
-<span class="gl-sr-only">GitLab</span>
-<a title="Homepage" id="logo" class="has-tooltip" href="/"><svg class="tanuki-logo" width="25" height="24" viewBox="0 0 25 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path class="tanuki-shape tanuki" d="m24.507 9.5-.034-.09L21.082.562a.896.896 0 0 0-1.694.091l-2.29 7.01H7.825L5.535.653a.898.898 0 0 0-1.694-.09L.451 9.411.416 9.5a6.297 6.297 0 0 0 2.09 7.278l.012.01.03.022 5.16 3.867 2.56 1.935 1.554 1.176a1.051 1.051 0 0 0 1.268 0l1.555-1.176 2.56-1.935 5.197-3.89.014-.01A6.297 6.297 0 0 0 24.507 9.5Z"
-        fill="#E24329"/>
-  <path class="tanuki-shape right-cheek" d="m24.507 9.5-.034-.09a11.44 11.44 0 0 0-4.56 2.051l-7.447 5.632 4.742 3.584 5.197-3.89.014-.01A6.297 6.297 0 0 0 24.507 9.5Z"
-        fill="#FC6D26"/>
-  <path class="tanuki-shape chin" d="m7.707 20.677 2.56 1.935 1.555 1.176a1.051 1.051 0 0 0 1.268 0l1.555-1.176 2.56-1.935-4.743-3.584-4.755 3.584Z"
-        fill="#FCA326"/>
-  <path class="tanuki-shape left-cheek" d="M5.01 11.461a11.43 11.43 0 0 0-4.56-2.05L.416 9.5a6.297 6.297 0 0 0 2.09 7.278l.012.01.03.022 5.16 3.867 4.745-3.584-7.444-5.632Z"
-        fill="#FC6D26"/>
-</svg>
-
-</a></div>
-<div class="gl-display-flex gl-align-items-center">
-</div>
-<div class="gl-display-none gl-sm-display-block">
-<ul class="list-unstyled nav navbar-sub-nav" data-view-model="{&quot;primary&quot;:[{&quot;type&quot;:&quot;header&quot;,&quot;title&quot;:&quot;Explore&quot;},{&quot;id&quot;:&quot;project&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Projects&quot;,&quot;active&quot;:true,&quot;icon&quot;:&quot;project&quot;,&quot;href&quot;:&quot;/explore&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:null,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Projects&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;groups&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Groups&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;group&quot;,&quot;href&quot;:&quot;/explore/groups&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:null,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Groups&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;topics&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Topics&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;labels&quot;,&quot;href&quot;:&quot;/explore/projects/topics&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:null,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Topics&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;snippets&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Snippets&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;snippet&quot;,&quot;href&quot;:&quot;/explore/snippets&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:null,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Snippets&quot;},&quot;partial&quot;:null,&quot;component&quot;:null}],&quot;secondary&quot;:[],&quot;views&quot;:{},&quot;shortcuts&quot;:[{&quot;id&quot;:&quot;project-shortcut&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Projects&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;&quot;,&quot;href&quot;:&quot;/explore&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-projects&quot;,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Projects&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;groups-shortcut&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Groups&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;&quot;,&quot;href&quot;:&quot;/explore/groups&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-groups&quot;,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Groups&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;topics-shortcut&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Topics&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;&quot;,&quot;href&quot;:&quot;/explore/projects/topics&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-topics&quot;,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Topics&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;snippets-shortcut&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Snippets&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;&quot;,&quot;href&quot;:&quot;/explore/snippets&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-snippets&quot;,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Snippets&quot;},&quot;partial&quot;:null,&quot;component&quot;:null}],&quot;menuTooltip&quot;:&quot;Main menu&quot;}" id="js-top-nav">
-<li>
-<a class="top-nav-toggle" data-toggle="dropdown" href="#" type="button">
-<svg class="s16" data-testid="hamburger-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#hamburger"></use></svg>
-</a>
-</li>
-</ul>
-<div class="hidden">
-<a class="dashboard-shortcuts-projects" href="/explore">Projects
-</a><a class="dashboard-shortcuts-groups" href="/explore/groups">Groups
-</a><a class="dashboard-shortcuts-topics" href="/explore/projects/topics">Topics
-</a><a class="dashboard-shortcuts-snippets" href="/explore/snippets">Snippets
-</a></div>
-
-</div>
-</div>
-<div class="navbar-collapse gl-transition-medium collapse gl-mr-auto global-search-container hide-when-top-nav-responsive-open">
-<ul class="nav navbar-nav gl-w-full gl-align-items-center">
-<li class="nav-item header-search-new gl-display-none gl-lg-display-block gl-w-full">
-<div class="header-search is-not-active gl-relative gl-w-full" data-autocomplete-path="/search/autocomplete" data-issues-path="/dashboard/issues" data-mr-path="/dashboard/merge_requests" data-search-context="{&quot;project&quot;:{&quot;id&quot;:73,&quot;name&quot;:&quot;Nextflow_PAN_DIVIA_RHEL8&quot;},&quot;project_metadata&quot;:{&quot;mr_path&quot;:&quot;/wzhang42/nextflow_pan_divia_rhel8/-/merge_requests&quot;,&quot;issues_path&quot;:&quot;/wzhang42/nextflow_pan_divia_rhel8/-/issues&quot;},&quot;code_search&quot;:true,&quot;ref&quot;:&quot;main&quot;,&quot;scope&quot;:null,&quot;for_snippets&quot;:null}" data-search-path="/search" id="js-header-search">
-<form action="/search" accept-charset="UTF-8" method="get"><div class="gl-search-box-by-type">
-<svg class="s16 gl-search-box-by-type-search-icon gl-icon" data-testid="search-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#search"></use></svg>
-<input autocomplete="off" class="form-control gl-form-input gl-search-box-by-type-input" data-qa-selector="search_box" id="search" name="search" placeholder="Search GitLab" type="text">
-</div>
-
-<input type="hidden" name="project_id" id="project_id" value="73" autocomplete="off" />
-<input type="hidden" name="scope" id="scope" autocomplete="off" />
-<input type="hidden" name="search_code" id="search_code" value="true" autocomplete="off" />
-<input type="hidden" name="snippets" id="snippets" autocomplete="off" />
-<input type="hidden" name="repository_ref" id="repository_ref" value="main" autocomplete="off" />
-<input type="hidden" name="nav_source" id="nav_source" value="navbar" autocomplete="off" />
-<kbd class="gl-absolute gl-right-3 gl-top-0 keyboard-shortcut-helper gl-z-index-1 has-tooltip" data-html="true" data-placement="bottom" title="Use the shortcut key &lt;kbd&gt;/&lt;/kbd&gt; to start a search">
-/
-</kbd>
-</form></div>
-
-</li>
-<li class="nav-item d-none d-sm-inline-block d-lg-none">
-<a title="Search" aria-label="Search" data-toggle="tooltip" data-placement="bottom" data-container="body" data-track-action="click_link" data-track-label="global_search" data-track-property="navigation_top" href="/search?project_id=73"><svg class="s16" data-testid="search-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#search"></use></svg>
-</a></li>
-</ul>
-</div>
-<div class="navbar-collapse gl-transition-medium collapse">
-<ul class="nav navbar-nav gl-w-full gl-align-items-center gl-justify-content-end">
-<li class="nav-item header-help dropdown d-none d-md-block">
-<a class="header-help-dropdown-toggle gl-relative" data-toggle="dropdown" data-track-action="click_question_mark_link" data-track-label="main_navigation" data-track-property="navigation_top" href="/help"><span class="gl-sr-only">
-Help
-</span>
-<svg class="s16" data-testid="question-o-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#question-o"></use></svg>
-<span class="notification-dot rounded-circle gl-absolute"></span>
-<svg class="s16 caret-down" data-testid="chevron-down-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#chevron-down"></use></svg>
-</a><div class="dropdown-menu dropdown-menu-right">
-<ul>
-<li>
-
-</li>
-
-<li>
-<a data-track-action="click_link" data-track-label="help" data-track-property="navigation_top" href="/help">Help</a>
-</li>
-<li>
-<a data-track-action="click_link" data-track-label="support" data-track-property="navigation_top" href="https://about.gitlab.com/get-help/">Support</a>
-</li>
-<li>
-<a target="_blank" class="text-nowrap" rel="noopener noreferrer" data-track-action="click_link" data-track-label="community_forum" data-track-property="navigation_top" href="https://forum.gitlab.com">Community forum</a>
-
-</li>
-<li>
-<button class="js-shortcuts-modal-trigger" data-track-action="click_button" data-track-label="keyboard_shortcuts_help" data-track-property="navigation_top" type="button">
-Keyboard shortcuts
-<kbd aria-hidden="true" class="flat float-right">?</kbd>
-</button>
-</li>
-<li class="divider"></li>
-<li>
-<a data-track-action="click_link" data-track-label="submit_feedback" data-track-property="navigation_top" href="https://about.gitlab.com/submit-feedback">Submit feedback</a>
-</li>
-<li>
-<a target="_blank" class="text-nowrap" data-track-action="click_link" data-track-label="contribute_to_gitlab" data-track-property="navigation_top" href="https://about.gitlab.com/contributing">Contribute to GitLab
-</a>
-</li>
-
-</ul>
-
-</div>
-</li>
-<li class="nav-item gl-flex-grow-0! gl-flex-basis-half!">
-<a href="/users/sign_in?redirect_to_referer=yes">Sign in</a>
-</li>
-</ul>
-</div>
-<button class="navbar-toggler d-block d-sm-none gl-border-none!" data-qa-selector="mobile_navbar_button" data-testid="top-nav-responsive-toggle" type="button">
-<span class="sr-only">Toggle navigation</span>
-<span class="more-icon gl-px-3 gl-font-sm gl-font-weight-bold">
-<span class="gl-pr-2">Menu</span>
-<svg class="s16" data-testid="hamburger-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#hamburger"></use></svg>
-</span>
-<svg class="s12 close-icon" data-testid="close-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#close"></use></svg>
-</button>
-</div>
-</div>
-</header>
-
-<div class="layout-page hide-when-top-nav-responsive-open page-with-contextual-sidebar">
-<aside aria-label="Project navigation" class="nav-sidebar">
-<div class="nav-sidebar-inner-scroll">
-<ul class="sidebar-top-level-items" data-qa-selector="project_sidebar">
-<li data-track-label="scope_menu" data-container="body" data-placement="right" class="context-header has-tooltip" title="Nextflow_PAN_DIVIA_RHEL8"><a aria-label="Nextflow_PAN_DIVIA_RHEL8" class="shortcuts-project rspec-project-link gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Project scope" href="/wzhang42/nextflow_pan_divia_rhel8"><span class="avatar-container rect-avatar s32 project_avatar">
-<span class="avatar avatar-tile s32 identicon bg4">N</span>
-</span>
-<span class="sidebar-context-title">
-Nextflow_PAN_DIVIA_RHEL8
-</span>
-</a></li>
-<li data-track-label="project_information_menu" class="home"><a aria-label="Project information" class="shortcuts-project-information has-sub-items gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Project information" href="/wzhang42/nextflow_pan_divia_rhel8/activity"><span class="nav-icon-container">
-<svg class="s16" data-testid="project-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#project"></use></svg>
-</span>
-<span class="nav-item-name">
-Project information
-</span>
-</a><ul class="sidebar-sub-level-items">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Project information
-</strong>
-</span>
-</li><li class="divider fly-out-top-item"></li>
-<li data-track-label="activity" class=""><a aria-label="Activity" class="shortcuts-project-activity gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Activity" href="/wzhang42/nextflow_pan_divia_rhel8/activity"><span class="gl-flex-grow-1">
-Activity
-</span>
-</a></li><li data-track-label="labels" class=""><a aria-label="Labels" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Labels" href="/wzhang42/nextflow_pan_divia_rhel8/-/labels"><span class="gl-flex-grow-1">
-Labels
-</span>
-</a></li><li data-track-label="members" class=""><a aria-label="Members" id="js-onboarding-members-link" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Members" href="/wzhang42/nextflow_pan_divia_rhel8/-/project_members"><span class="gl-flex-grow-1">
-Members
-</span>
-</a></li>
-</ul>
-
-</li><li data-track-label="repository_menu" class="active"><a aria-label="Repository" class="shortcuts-tree has-sub-items gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Repository" href="/wzhang42/nextflow_pan_divia_rhel8/-/tree/main"><span class="nav-icon-container">
-<svg class="s16" data-testid="doc-text-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#doc-text"></use></svg>
-</span>
-<span class="nav-item-name" id="js-onboarding-repo-link">
-Repository
-</span>
-</a><ul class="sidebar-sub-level-items">
-<li class="fly-out-top-item active"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Repository
-</strong>
-</span>
-</li><li class="divider fly-out-top-item"></li>
-<li data-track-label="files" class="active"><a aria-label="Files" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Files" href="/wzhang42/nextflow_pan_divia_rhel8/-/tree/main"><span class="gl-flex-grow-1">
-Files
-</span>
-</a></li><li data-track-label="commits" class=""><a aria-label="Commits" id="js-onboarding-commits-link" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Commits" href="/wzhang42/nextflow_pan_divia_rhel8/-/commits/main?ref_type=heads"><span class="gl-flex-grow-1">
-Commits
-</span>
-</a></li><li data-track-label="branches" class=""><a aria-label="Branches" id="js-onboarding-branches-link" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Branches" href="/wzhang42/nextflow_pan_divia_rhel8/-/branches"><span class="gl-flex-grow-1">
-Branches
-</span>
-</a></li><li data-track-label="tags" class=""><a aria-label="Tags" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Tags" href="/wzhang42/nextflow_pan_divia_rhel8/-/tags"><span class="gl-flex-grow-1">
-Tags
-</span>
-</a></li><li data-track-label="contributors" class=""><a aria-label="Contributor statistics" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Contributor statistics" href="/wzhang42/nextflow_pan_divia_rhel8/-/graphs/main?ref_type=heads"><span class="gl-flex-grow-1">
-Contributor statistics
-</span>
-</a></li><li data-track-label="graphs" class=""><a aria-label="Graph" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Graph" href="/wzhang42/nextflow_pan_divia_rhel8/-/network/main?ref_type=heads"><span class="gl-flex-grow-1">
-Graph
-</span>
-</a></li><li data-track-label="compare" class=""><a aria-label="Compare revisions" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Compare revisions" href="/wzhang42/nextflow_pan_divia_rhel8/-/compare?from=main&amp;to=main"><span class="gl-flex-grow-1">
-Compare revisions
-</span>
-</a></li>
-</ul>
-
-</li><li data-track-label="issues_menu" class=""><a aria-label="Issues" class="shortcuts-issues has-sub-items gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Issues" href="/wzhang42/nextflow_pan_divia_rhel8/-/issues"><span class="nav-icon-container">
-<svg class="s16" data-testid="issues-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#issues"></use></svg>
-</span>
-<span class="nav-item-name" id="js-onboarding-issues-link">
-Issues
-</span>
-<span class="gl-badge badge badge-pill badge-info sm count issue_counter">0
-</span></a><ul class="sidebar-sub-level-items">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Issues
-</strong>
-<span class="gl-badge badge badge-pill badge-info sm count fly-out-badge issue_counter">0
-</span></span>
-</li><li class="divider fly-out-top-item"></li>
-<li data-track-label="issue_list" class=""><a aria-label="Issues" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="List" href="/wzhang42/nextflow_pan_divia_rhel8/-/issues"><span class="gl-flex-grow-1">
-List
-</span>
-</a></li><li data-track-label="boards" class=""><a aria-label="Boards" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Boards" href="/wzhang42/nextflow_pan_divia_rhel8/-/boards"><span class="gl-flex-grow-1">
-Boards
-</span>
-</a></li><li data-track-label="service_desk" class=""><a aria-label="Service Desk" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Service Desk" href="/wzhang42/nextflow_pan_divia_rhel8/-/issues/service_desk"><span class="gl-flex-grow-1">
-Service Desk
-</span>
-</a></li><li data-track-label="milestones" class=""><a aria-label="Milestones" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Milestones" href="/wzhang42/nextflow_pan_divia_rhel8/-/milestones"><span class="gl-flex-grow-1">
-Milestones
-</span>
-</a></li>
-</ul>
-
-</li><li data-track-label="merge_requests_menu" class=""><a aria-label="Merge requests" class="shortcuts-merge_requests gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Merge requests" href="/wzhang42/nextflow_pan_divia_rhel8/-/merge_requests"><span class="nav-icon-container">
-<svg class="s16" data-testid="git-merge-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#git-merge"></use></svg>
-</span>
-<span class="nav-item-name" id="js-onboarding-mr-link">
-Merge requests
-</span>
-<span class="gl-badge badge badge-pill badge-info sm count merge_counter js-merge-counter">0
-</span></a><ul class="sidebar-sub-level-items is-fly-out-only">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Merge requests
-</strong>
-<span class="gl-badge badge badge-pill badge-info sm count fly-out-badge merge_counter js-merge-counter">0
-</span></span>
-</li></ul>
-
-</li><li data-track-label="ci_cd_menu" class=""><a aria-label="CI/CD" class="shortcuts-pipelines rspec-link-pipelines has-sub-items gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="CI/CD" href="/wzhang42/nextflow_pan_divia_rhel8/-/pipelines"><span class="nav-icon-container">
-<svg class="s16" data-testid="rocket-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#rocket"></use></svg>
-</span>
-<span class="nav-item-name" id="js-onboarding-pipelines-link">
-CI/CD
-</span>
-</a><ul class="sidebar-sub-level-items">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-CI/CD
-</strong>
-</span>
-</li><li class="divider fly-out-top-item"></li>
-<li data-track-label="pipelines" class=""><a aria-label="Pipelines" class="shortcuts-pipelines gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Pipelines" href="/wzhang42/nextflow_pan_divia_rhel8/-/pipelines"><span class="gl-flex-grow-1">
-Pipelines
-</span>
-</a></li><li data-track-label="jobs" class=""><a aria-label="Jobs" class="shortcuts-builds gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Jobs" href="/wzhang42/nextflow_pan_divia_rhel8/-/jobs"><span class="gl-flex-grow-1">
-Jobs
-</span>
-</a></li><li data-track-label="pipeline_schedules" class=""><a aria-label="Schedules" class="shortcuts-builds gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Schedules" href="/wzhang42/nextflow_pan_divia_rhel8/-/pipeline_schedules"><span class="gl-flex-grow-1">
-Schedules
-</span>
-</a></li>
-</ul>
-
-</li><li data-track-label="deployments_menu" class=""><a aria-label="Deployments" class="shortcuts-deployments has-sub-items gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Deployments" href="/wzhang42/nextflow_pan_divia_rhel8/-/environments"><span class="nav-icon-container">
-<svg class="s16" data-testid="deployments-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#deployments"></use></svg>
-</span>
-<span class="nav-item-name">
-Deployments
-</span>
-</a><ul class="sidebar-sub-level-items">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Deployments
-</strong>
-</span>
-</li><li class="divider fly-out-top-item"></li>
-<li data-track-label="environments" class=""><a aria-label="Environments" class="shortcuts-environments gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Environments" href="/wzhang42/nextflow_pan_divia_rhel8/-/environments"><span class="gl-flex-grow-1">
-Environments
-</span>
-</a></li><li data-track-label="releases" class=""><a aria-label="Releases" class="shortcuts-deployments-releases gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Releases" href="/wzhang42/nextflow_pan_divia_rhel8/-/releases"><span class="gl-flex-grow-1">
-Releases
-</span>
-</a></li>
-</ul>
-
-</li><li data-track-label="packages_registries_menu" class=""><a aria-label="Packages and registries" class="has-sub-items gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Packages and registries" href="/wzhang42/nextflow_pan_divia_rhel8/-/packages"><span class="nav-icon-container">
-<svg class="s16" data-testid="package-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#package"></use></svg>
-</span>
-<span class="nav-item-name">
-Packages and registries
-</span>
-</a><ul class="sidebar-sub-level-items">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Packages and registries
-</strong>
-</span>
-</li><li class="divider fly-out-top-item"></li>
-<li data-track-label="packages_registry" class=""><a aria-label="Package Registry" class="shortcuts-container-registry gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Package Registry" href="/wzhang42/nextflow_pan_divia_rhel8/-/packages"><span class="gl-flex-grow-1">
-Package Registry
-</span>
-</a></li><li data-track-label="infrastructure_registry" class=""><a aria-label="Terraform modules" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Terraform modules" href="/wzhang42/nextflow_pan_divia_rhel8/-/infrastructure_registry"><span class="gl-flex-grow-1">
-Terraform modules
-</span>
-</a></li>
-</ul>
-
-</li><li data-track-label="monitor_menu" class=""><a aria-label="Monitor" class="shortcuts-monitor has-sub-items gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Monitor" href="/wzhang42/nextflow_pan_divia_rhel8/-/incidents"><span class="nav-icon-container">
-<svg class="s16" data-testid="monitor-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#monitor"></use></svg>
-</span>
-<span class="nav-item-name">
-Monitor
-</span>
-</a><ul class="sidebar-sub-level-items">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Monitor
-</strong>
-</span>
-</li><li class="divider fly-out-top-item"></li>
-<li data-track-label="incidents" class=""><a aria-label="Incidents" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Incidents" href="/wzhang42/nextflow_pan_divia_rhel8/-/incidents"><span class="gl-flex-grow-1">
-Incidents
-</span>
-</a></li>
-</ul>
-
-</li><li data-track-label="analytics_menu" class=""><a aria-label="Analytics" class="shortcuts-analytics has-sub-items gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Analytics" href="/wzhang42/nextflow_pan_divia_rhel8/-/value_stream_analytics"><span class="nav-icon-container">
-<svg class="s16" data-testid="chart-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#chart"></use></svg>
-</span>
-<span class="nav-item-name">
-Analytics
-</span>
-</a><ul class="sidebar-sub-level-items">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Analytics
-</strong>
-</span>
-</li><li class="divider fly-out-top-item"></li>
-<li data-track-label="cycle_analytics" class=""><a aria-label="Value stream" class="shortcuts-project-cycle-analytics gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Value stream" href="/wzhang42/nextflow_pan_divia_rhel8/-/value_stream_analytics"><span class="gl-flex-grow-1">
-Value stream
-</span>
-</a></li><li data-track-label="ci_cd_analytics" class=""><a aria-label="CI/CD" class="gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="CI/CD" href="/wzhang42/nextflow_pan_divia_rhel8/-/pipelines/charts"><span class="gl-flex-grow-1">
-CI/CD
-</span>
-</a></li><li data-track-label="repository_analytics" class=""><a aria-label="Repository" class="shortcuts-repository-charts gl-link" data-qa-selector="sidebar_menu_item_link" data-qa-menu-item="Repository" href="/wzhang42/nextflow_pan_divia_rhel8/-/graphs/main/charts"><span class="gl-flex-grow-1">
-Repository
-</span>
-</a></li>
-</ul>
-
-</li><li data-track-label="wiki_menu" class=""><a aria-label="Wiki" class="shortcuts-wiki gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Wiki" href="/wzhang42/nextflow_pan_divia_rhel8/-/wikis/home"><span class="nav-icon-container">
-<svg class="s16" data-testid="book-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#book"></use></svg>
-</span>
-<span class="nav-item-name">
-Wiki
-</span>
-</a><ul class="sidebar-sub-level-items is-fly-out-only">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Wiki
-</strong>
-</span>
-</li></ul>
-
-</li><li data-track-label="snippets_menu" class=""><a aria-label="Snippets" class="shortcuts-snippets gl-link" data-qa-selector="sidebar_menu_link" data-qa-menu-item="Snippets" href="/wzhang42/nextflow_pan_divia_rhel8/-/snippets"><span class="nav-icon-container">
-<svg class="s16" data-testid="snippet-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#snippet"></use></svg>
-</span>
-<span class="nav-item-name">
-Snippets
-</span>
-</a><ul class="sidebar-sub-level-items is-fly-out-only">
-<li class="fly-out-top-item"><span class="fly-out-top-item-container">
-<strong class="fly-out-top-item-name">
-Snippets
-</strong>
-</span>
-</li></ul>
-
-</li>
-<li class="hidden">
-<a aria-label="Activity" class="shortcuts-project-activity gl-link" href="/wzhang42/nextflow_pan_divia_rhel8/activity">Activity
-</a></li>
-<li class="hidden">
-<a aria-label="Graph" class="shortcuts-network gl-link" href="/wzhang42/nextflow_pan_divia_rhel8/-/network/main">Graph
-</a></li>
-<li class="hidden">
-<a aria-label="Create a new issue" class="shortcuts-new-issue gl-link" href="/wzhang42/nextflow_pan_divia_rhel8/-/issues/new">Create a new issue
-</a></li>
-<li class="hidden">
-<a aria-label="Jobs" class="shortcuts-builds gl-link" href="/wzhang42/nextflow_pan_divia_rhel8/-/jobs">Jobs
-</a></li>
-<li class="hidden">
-<a aria-label="Commits" class="shortcuts-commits gl-link" href="/wzhang42/nextflow_pan_divia_rhel8/-/commits/main">Commits
-</a></li>
-<li class="hidden">
-<a aria-label="Issue Boards" class="shortcuts-issue-boards gl-link" href="/wzhang42/nextflow_pan_divia_rhel8/-/boards">Issue Boards
-</a></li>
-
-</ul>
-<a class="toggle-sidebar-button js-toggle-sidebar rspec-toggle-sidebar" role="button" title="Toggle sidebar" type="button">
-<svg class="s12 icon-chevron-double-lg-left" data-testid="chevron-double-lg-left-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#chevron-double-lg-left"></use></svg>
-<span class="collapse-text gl-ml-3">Collapse sidebar</span>
-</a>
-<button name="button" type="button" class="close-nav-button"><svg class="s16" data-testid="close-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#close"></use></svg>
-<span class="collapse-text gl-ml-3">Close sidebar</span>
-</button>
-</div>
-</aside>
-
-
-<div class="content-wrapper">
-<div class="mobile-overlay"></div>
-
-<div class="alert-wrapper gl-force-block-formatting-context">
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="container-fluid container-limited project-highlight-puc">
-<div class="top-bar-container gl-display-flex gl-align-items-center gl-border-b">
-<button class="gl-button btn btn-icon btn-md btn-default btn-default-tertiary toggle-mobile-nav gl-ml-n3 gl-mr-2" data-qa-selector="toggle_mobile_nav_button" aria-label="Open sidebar" type="button"><svg class="s16 gl-icon gl-button-icon " data-testid="sidebar-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#sidebar"></use></svg>
-
-</button>
-<nav aria-label="Breadcrumbs" class="breadcrumbs" data-qa-selector="breadcrumb_links_content" data-testid="breadcrumb-links">
-<ul class="list-unstyled breadcrumbs-list js-breadcrumbs-list">
-<li><a href="/wzhang42">Wenchao Zhang</a><svg class="s8 breadcrumbs-list-angle" data-testid="chevron-lg-right-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#chevron-lg-right"></use></svg></li> <li><a href="/wzhang42/nextflow_pan_divia_rhel8"><span class="breadcrumb-item-text js-breadcrumb-item-text">Nextflow_PAN_DIVIA_RHEL8</span></a><svg class="s8 breadcrumbs-list-angle" data-testid="chevron-lg-right-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#chevron-lg-right"></use></svg></li>
-
-<li data-qa-selector="breadcrumb_current_link" data-testid="breadcrumb-current-link">
-<a href="/wzhang42/nextflow_pan_divia_rhel8/-/blob/main/DIVIA.nf">Repository</a>
-</li>
-</ul>
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Wenchao Zhang","item":"https://phoebe.stjude.org/wzhang42"},{"@type":"ListItem","position":2,"name":"Nextflow_PAN_DIVIA_RHEL8","item":"https://phoebe.stjude.org/wzhang42/nextflow_pan_divia_rhel8"},{"@type":"ListItem","position":3,"name":"Repository","item":"https://phoebe.stjude.org/wzhang42/nextflow_pan_divia_rhel8/-/blob/main/DIVIA.nf"}]}
-
-</script>
-</nav>
-
-
-</div>
-</div>
-
-</div>
-<div class="container-fluid container-limited project-highlight-puc">
-<main class="content" id="content-body" itemscope itemtype="http://schema.org/SoftwareSourceCode">
-<div class="flash-container flash-container-page sticky" data-qa-selector="flash_container">
-</div>
-
-
-
-
-<div class="js-signature-container" data-signatures-path="/wzhang42/nextflow_pan_divia_rhel8/-/commits/8c678f4a1b5a323586a90555c3511d7f1b1567b4/signatures?limit=1"></div>
-
-<div class="tree-holder" id="tree-holder">
-<div class="nav-block">
-<div class="tree-ref-container">
-<div class="tree-ref-holder">
-<div data-project-id="73" data-project-root-path="/wzhang42/nextflow_pan_divia_rhel8" data-ref="main" data-ref-type="" id="js-tree-ref-switcher"></div>
-</div>
-<ul class="breadcrumb repo-breadcrumb">
-<li class="breadcrumb-item">
-<a href="/wzhang42/nextflow_pan_divia_rhel8/-/tree/main">nextflow_pan_divia_rhel8
-</a></li>
-<li class="breadcrumb-item">
-<a href="/wzhang42/nextflow_pan_divia_rhel8/-/blob/main/DIVIA.nf"><strong>DIVIA.nf</strong>
-</a></li>
-</ul>
-</div>
-<div class="tree-controls gl-children-ml-sm-3"><a class="gl-button btn btn-default shortcuts-find-file" rel="nofollow" href="/wzhang42/nextflow_pan_divia_rhel8/-/find_file/main">Find file
-</a><a class="gl-button btn btn-default js-blob-blame-link" href="/wzhang42/nextflow_pan_divia_rhel8/-/blame/main/DIVIA.nf">Blame</a><a class="gl-button btn btn-default" href="/wzhang42/nextflow_pan_divia_rhel8/-/commits/main/DIVIA.nf">History</a><a class="gl-button btn btn-default js-data-file-blob-permalink-url" href="/wzhang42/nextflow_pan_divia_rhel8/-/blob/929d2af273f19cbf3c94e02ba354ae2546687e0e/DIVIA.nf">Permalink</a></div>
-</div>
-
-<div class="info-well d-none d-sm-block">
-<div class="well-segment">
-<ul class="blob-commit-info">
-<li class="commit flex-row js-toggle-container" id="commit-8c678f4a">
-<div class="avatar-cell d-none d-sm-block">
-<a href="mailto:wzhang42@splprhpc09.cm.cluster"><img alt="Zhang&#39;s avatar" src="https://www.gravatar.com/avatar/c37bb3d116d5ed31aa32304ff7a00b87?s=80&amp;d=identicon" class="avatar s40 d-none d-sm-inline-block" title="Zhang"></a>
-</div>
-<div class="commit-detail flex-list gl-display-flex gl-justify-content-space-between gl-align-items-flex-start gl-flex-grow-1 gl-min-w-0">
-<div class="commit-content" data-qa-selector="commit_content">
-<a class="commit-row-message item-title js-onboarding-commit-item " href="/wzhang42/nextflow_pan_divia_rhel8/-/commit/8c678f4a1b5a323586a90555c3511d7f1b1567b4">further fix a bug in the Adaptor_RNAINdel and Adaptor_GATK</a>
-<span class="commit-row-message d-inline d-sm-none">
-&middot;
-8c678f4a
-</span>
-<div class="committer">
-<a class="commit-author-link" href="mailto:wzhang42@splprhpc09.cm.cluster">Zhang</a> authored <time class="js-timeago" title="Feb 27, 2024 5:55pm" datetime="2024-02-27T17:55:35Z" data-toggle="tooltip" data-placement="bottom" data-container="body">Feb 27, 2024</time>
-</div>
-
-</div>
-<div class="commit-actions flex-row">
-
-<div class="js-commit-pipeline-status" data-endpoint="/wzhang42/nextflow_pan_divia_rhel8/-/commit/8c678f4a1b5a323586a90555c3511d7f1b1567b4/pipelines?ref=main"></div>
-<div class="commit-sha-group btn-group d-none d-sm-flex">
-<div class="label label-monospace monospace">
-8c678f4a
-</div>
-<button class="btn gl-button btn btn-default btn-icon" data-toggle="tooltip" data-placement="bottom" data-container="body" data-clipboard-text="8c678f4a1b5a323586a90555c3511d7f1b1567b4" type="button" title="Copy commit SHA" aria-label="Copy commit SHA" aria-live="polite"><svg class="s16 gl-icon" data-testid="copy-to-clipboard-icon"><use href="/assets/icons-87cb0ce1047e0d3e1ddd352a88d6807e6155673ebba21022180ab5ee153c2026.svg#copy-to-clipboard"></use></svg></button>
-
-</div>
-</div>
-</div>
-</li>
-
-</ul>
-</div>
-<div data-blob-path="DIVIA.nf" data-branch="main" data-branch-rules-path="/wzhang42/nextflow_pan_divia_rhel8/-/settings/repository#js-branch-rules" data-project-path="wzhang42/nextflow_pan_divia_rhel8" id="js-code-owners"></div>
-
-</div>
-<div class="blob-content-holder js-per-page" data-blame-per-page="1000" id="blob-content-holder">
-<div data-blob-path="DIVIA.nf" data-original-branch="main" data-project-path="wzhang42/nextflow_pan_divia_rhel8" data-resource-id="gid://gitlab/Project/73" data-target-branch="main" data-user-id="" id="js-view-blob-app">
-<div class="gl-spinner-container" role="status"><span aria-label="Loading" class="gl-spinner gl-spinner-md gl-spinner-dark gl-vertical-align-text-bottom!"></span></div>
-</div>
-</div>
-
-</div>
-
-<script>
-//<![CDATA[
-  window.gl = window.gl || {};
-  window.gl.webIDEPath = '/-/ide/project/wzhang42/nextflow_pan_divia_rhel8/edit/main/-/DIVIA.nf'
-
-
-//]]>
-</script>
-
-</main>
-</div>
-
-
-</div>
-</div>
-<div class="top-nav-responsive layout-page">
-<div class="cloak-startup">
-<div data-view-model="{&quot;primary&quot;:[{&quot;type&quot;:&quot;header&quot;,&quot;title&quot;:&quot;Explore&quot;},{&quot;id&quot;:&quot;project&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Projects&quot;,&quot;active&quot;:true,&quot;icon&quot;:&quot;project&quot;,&quot;href&quot;:&quot;/explore&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:null,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Projects&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;groups&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Groups&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;group&quot;,&quot;href&quot;:&quot;/explore/groups&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:null,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Groups&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;topics&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Topics&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;labels&quot;,&quot;href&quot;:&quot;/explore/projects/topics&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:null,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Topics&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;snippets&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Snippets&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;snippet&quot;,&quot;href&quot;:&quot;/explore/snippets&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:null,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Snippets&quot;},&quot;partial&quot;:null,&quot;component&quot;:null}],&quot;secondary&quot;:[],&quot;views&quot;:{&quot;search&quot;:{&quot;id&quot;:&quot;search&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Search&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;search&quot;,&quot;href&quot;:&quot;/search?project_id=73&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:null,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Search&quot;},&quot;partial&quot;:null,&quot;component&quot;:null}},&quot;shortcuts&quot;:[{&quot;id&quot;:&quot;project-shortcut&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Projects&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;&quot;,&quot;href&quot;:&quot;/explore&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-projects&quot;,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Projects&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;groups-shortcut&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Groups&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;&quot;,&quot;href&quot;:&quot;/explore/groups&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-groups&quot;,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Groups&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;topics-shortcut&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Topics&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;&quot;,&quot;href&quot;:&quot;/explore/projects/topics&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-topics&quot;,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Topics&quot;},&quot;partial&quot;:null,&quot;component&quot;:null},{&quot;id&quot;:&quot;snippets-shortcut&quot;,&quot;type&quot;:&quot;item&quot;,&quot;title&quot;:&quot;Snippets&quot;,&quot;active&quot;:false,&quot;icon&quot;:&quot;&quot;,&quot;href&quot;:&quot;/explore/snippets&quot;,&quot;view&quot;:&quot;&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-snippets&quot;,&quot;data&quot;:{&quot;qa_selector&quot;:&quot;menu_item_link&quot;,&quot;qa_title&quot;:&quot;Snippets&quot;},&quot;partial&quot;:null,&quot;component&quot;:null}],&quot;menuTooltip&quot;:&quot;Main menu&quot;}" id="js-top-nav-responsive"></div>
-</div>
-</div>
-
-
-
-<script>
-//<![CDATA[
-if ('loading' in HTMLImageElement.prototype) {
-  document.querySelectorAll('img.lazy').forEach(img => {
-    img.loading = 'lazy';
-    let imgUrl = img.dataset.src;
-    // Only adding width + height for avatars for now
-    if (imgUrl.indexOf('/avatar/') > -1 && imgUrl.indexOf('?') === -1) {
-      const targetWidth = img.getAttribute('width') || img.width;
-      imgUrl += `?width=${targetWidth}`;
-    }
-    img.src = imgUrl;
-    img.removeAttribute('data-src');
-    img.classList.remove('lazy');
-    img.classList.add('js-lazy-loaded');
-    img.dataset.qa_selector = 'js_lazy_loaded_content';
-  });
+def DispConfig() {
+ log.info """
+Welocme to run Nextflow Pipeline DIVIA.nf  
+Your configuration are the following:
+  project               : ${params.project}
+  fastq_filelist        : ${params.fastq_filelist}
+  outdir                : ${params.outdir}
+  
+  Lineage_Type          : ${params.Lineage_Type}
+  ChrName_withChr       : ${params.ChrName_withChr}
+
+  Select_Trim_Galore    : ${params.Select_Trim_Galore}
+  Select_Fusion_Catcher : ${params.Select_Fusion_Catcher}
+  Select_STAR_Fusion    : ${params.Select_STAR_Fusion}
+  Select_Arriba_Fusion  : ${params.Select_Arriba_Fusion}
+
+  Select_GATK           : ${params.Select_GATK}
+  Select_Haplo_PerChrom : ${params.Select_Haplo_PerChrom}
+  Select_VarDict        : ${params.Select_VarDict}
+
+  Select_Variant_ANNOVAR: ${params.Select_Variant_ANNOVAR}
+
+  Select_RSEM           : ${params.Select_RSEM} 
+  Select_ML_RANK        : ${params.Select_ML_Classifier_RANK}
+  Select_ML_tSNE        : ${params.Select_ML_Classifier_tSNE}
+  Select_ML_RF          : ${params.Select_ML_Classifier_RF}
+
+  Select_RNASeqCNV      : ${params.Select_RNASeqCNV}  
+  Select_RNAIndel       : ${params.Select_RNAIndel}  
+  
+  Select_Pindel         : ${params.Select_Pindel}
+  Select_iAdmix         : ${params.Select_iAdmix}
+
+  The following detail information is based your configuration: 
+ 
+ """  
+//  exit 0    
 }
 
-//]]>
-</script>
-<script>
-//<![CDATA[
-gl = window.gl || {};
-gl.experiments = {};
+def helpMessage() {
+  log.info """
+        Welocme to run Nextflow Pipeline DIVIA.nf 
+        Usage:
+        A typical command for running the pipeline is as follows:
+        nextflow run DIVIA.nf -profile cluster_singularity 
+        A command with more configurable arguments can be           
+        nextflow run DIVIA.nf -profile cluster -w ~/Nextflow_work -- ./
+
+        Configurable arguments:
+        --project                     Project name/atlas, a folder that used to distinguish other analysis 
+        --Fastq_filelist              Fastq file list that you want to do BALL classification  
+        --Lineage_Type                ALL Lineage TYpe. BALL |TALL |AML   
+        --ChrName_withChr             Whether ChrName has prefix chr. Y|N
+
+        --outdir                      The directory for the pipeline output           
+        --Select_Trim_Galore          Whether select Trim_Galore for trimming reads and FastQC. Y(Default) | N 
+        --Select_Fusion_Catcher       Whether select Fusion_Catcher for Fusion Detection. Y(Default) | N 
+        --Select_STAR_Fusion          Whether select STAR_Fusion for Fusion Detection. Y(Default) | N
+        --Select_Arriba_Fusion        Whether select Arriba for Fusion Detection. Y(Default) | N 
+             
+        --Select_GATK                 Whether select GATK for rna variant calling. Y(Default) | N
+        --Select_Haplo_PerChrom       Whether select Chrom Per chrom to run HaplotypeCaller. Y (Default) |N
+        --Select_VarDict              Whether select to VarDict for Variant calling.  Y (Default) |N.
+        --Select_Variant_ANNOVAR      Whether select ANNOVAR for the called RNA variant annotation. Y(Default) |N
+       
+        --Select_RSEM                 Whether select RSEM for rnaseq quantification. Y(Default) | N
+        --Select_ML_Classifier_RANK   Whether select RANK for GE-ML Classifier. Y(Default) | N
+        --Select_ML_Classifier_tSNE   Whether select tSNE for GE-ML Classifier. Y(Default) | N
+        --Select_ML_Classifier_RF     Whether select RandomForest for GE-ML Classifier. Y(Default) | N
+        --Select_RNASeqCNV            Whether select RNASeqCNV for CNV calling. Y(Default) | N 
+        --Select_RNAIndel             Whether select RNAIndel for calling coding indels from tumor RNA-Seq data. Y(Default) | N
+        --Select_Pindel               Whether select Pindel for detecting the breakpoints of large deletions, insertions, inversions, and tandem duplications Y(Default) | N
+        --Select_iAdmix               Whether select iAdmix to estimate admixture coefficients from aligned BAM. Y(Default) | N. 
+       --help | h                    This usage statement.
+       Note:
+         All the above arguments can be configured by the command line interface or in the nextflow.config (default)  
+        """
+}
 
 
-//]]>
-</script>
+// Show help message
+if ((params.help) || (params.h)) {
+    helpMessage()
+    exit 0
+}
 
-</body>
-</html>
+//Parse the input Parameters and configs. 
+parse_config_parameters() 
+// Display the configuration
+DispConfig() 
 
+// Set up the two external input channels for samples (fastq files)  
+Read_Fastq_Ch  = Channel
+            .fromPath(params.fastq_filelist)
+            .splitText()
+            .splitCsv(sep: '\t')
+            //.splitCsv(sep: ',')
+
+// HaplotypeCalling can be implemented chromosome by chromosome. Need to consider two scenario with/without prefixing "Chr"     
+chromosomes_ch = (params.ChrName_withChr=="Y")? Channel
+    .from( "chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22", "chrX", "chrY", "chrM" ): Channel
+    .from( "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "X", "Y", "M" )
+
+
+/*This process is responsible for zcat the multiple lanes' fastq.gz into one mergred fastq.gz  */
+process Zcat_MergeFastq {
+   publishDir "${params.outdir}/${params.project}/Zcat_MergeFastq/${SampleName}", mode: 'copy', overwrite: true
+   input:
+   set SampleName, Read_Fastq, Strandness from Read_Fastq_Ch
+   
+   output:
+   set SampleName, file("${SampleName}.Merge_Read_R1.fastq.gz"), file("${SampleName}.Merge_Read_R2.fastq.gz"), Strandness into MergeFastq_Ch
+   
+   // scratch ${params.TMP_DIR}
+   scratch '/scratch_space/wzhang42/tmp_DIVIA_AML'   
+
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   zcat `echo $Read_Fastq | cut -d' ' -f1 |tr ',' ' '` >${SampleName}.Merge_Read_R1.fastq && gzip ${SampleName}.Merge_Read_R1.fastq
+   zcat `echo $Read_Fastq | cut -d' ' -f2 |tr ',' ' '` >${SampleName}.Merge_Read_R2.fastq && gzip ${SampleName}.Merge_Read_R2.fastq
+   """  
+}
+
+MergeFastq_Ch.into {MergeFastq_Ch1; MergeFastq_Ch2 } 
+/**********************************************************************************************
+* This Process is responsible for trimming reads by Trim_Galore
+***********************************************************************************************/
+Trim_Galore_In_Ch = (params.Select_Trim_Galore == "N" ) ? Channel.empty(): MergeFastq_Ch1
+process Trim_Galore {
+   publishDir "${params.outdir}/${params.project}/Trim_Galore/${SampleName}", mode: 'copy', overwrite: true
+   input:
+   set SampleName, file(Merge_Read_Fastq_R1), file(Merge_Read_Fastq_R2), Strandness from Trim_Galore_In_Ch
+   
+   output:
+   set SampleName, Strandness, file("${SampleName}_val_1.fq.gz"), file("${SampleName}_val_2.fq.gz"), file("${SampleName}_R1_unpaired_1.fq.gz"), file("${SampleName}_R2_unpaired_2.fq.gz"), file("${SampleName}_val_1_fastqc.html"), file("${SampleName}_val_2_fastqc.html"),  file("${Merge_Read_Fastq_R1}_trimming_report.txt"), file("${Merge_Read_Fastq_R2}_trimming_report.txt"), file("${SampleName}_val_1_fastqc.zip"), file("${SampleName}_val_2_fastqc.zip") into Trim_Galore_Ch
+
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   trim_galore \
+     --paired  \
+     --retain_unpaired \
+     --cores 4 \
+     --output_dir . \
+     --basename ${SampleName} \
+     --fastqc_args "--outdir . " \
+     ${Merge_Read_Fastq_R1} \
+     ${Merge_Read_Fastq_R2}
+   """
+}
+
+/***********************************************************************************************
+*  This process is responsible for adapting the trim_galore output to STAR mapping
+************************************************************************************************/
+process Trim_Galore_Adaptor_STARMapping {
+   input:
+   set SampleName, Strandness, file(val_1_fq_gz), file(val_2_fq_gz), file(unpaired_1_fq_gz), file(unpaired_2_fq_gz), file(va1_1_fastqc_html), file(va1_2_fastqc_html),  file(R1_fastq_gz_trimming_report), file(R2_fastq_gz_trimming_report), file(val_1_fastqc_zip), file(val_2_fastqc_zip) from Trim_Galore_Ch
+
+   output:
+   set SampleName, file("${SampleName}.Trim_Read_R1.fastq.gz"), file("${SampleName}.Trim_Read_R2.fastq.gz"), Strandness into Trim_Galore_Adaptor_STARMapping_Ch
+   
+   script:
+   """
+   ln -s ${val_1_fq_gz} ${SampleName}.Trim_Read_R1.fastq.gz
+   ln -s ${val_2_fq_gz} ${SampleName}.Trim_Read_R2.fastq.gz
+   """
+}
+
+
+STAR_Mapping_Upstream_Ch = (params.Select_Trim_Galore == "N" ) ? MergeFastq_Ch2 : Trim_Galore_Adaptor_STARMapping_Ch
+STAR_Mapping_Upstream_Ch.into { STAR_Mapping_In_Ch; Fusion_Catcher_Adaptor_Ch}
+/*************************************************************************************************************
+* This Process is be responsible for Fusion Catcher, which start from the fastq file instead of BAM as input
+*************************************************************************************************************/
+Fusion_Catcher_In_Ch= (params.Select_Fusion_Catcher == "N" ) ? Channel.empty() :Fusion_Catcher_Adaptor_Ch
+process Fusion_Catcher {
+   publishDir "${params.outdir}/${params.project}/Fusion_Catcher/${SampleName}", mode: 'copy', overwrite: true
+   memory { (64.GB + (32.GB * task.attempt)) } // First attempt 64GB, second 96GB, etc
+   errorStrategy 'retry'
+   maxRetries 3
+   
+   input:
+   set SampleName, file(R1_Read_Fastq), file(R2_Read_Fastq), Strandness from Fusion_Catcher_In_Ch   
+   
+   output:
+   set SampleName, file("info.txt"), file("junk-chimeras.txt"), file("summary_candidate_fusions.txt"), file("viruses_bacteria_phages.txt"), file("final-list_candidate-fusion*.*"), file("supporting-reads_gene-fusions*.*") into Fusion_Catcher_Ch 
+   
+   script:
+   """ 
+   export TMPDIR=${params.TMP_DIR}
+   fusioncatcher \
+   -d ${params.Fusion_Catcher.data_dir} \
+   -i ${R1_Read_Fastq},${R2_Read_Fastq} \
+   --threads ${params.Fusion_Catcher.ThreadN} \
+   --o . \
+   --aligners blat,star,bowtie2 \
+   --skip-star \
+   --skip-blat
+   """ 
+}
+
+/***********************************************************************************************
+* This Process is be responsible for STAR Mapping that will used in the downstream STAR_Fusion
+************************************************************************************************/
+process STAR_Mapping {
+   
+   publishDir "${params.outdir}/${params.project}/STAR_Mapping/${SampleName}", mode: 'copy', overwrite: true
+
+    memory { (64.GB + (32.GB * task.attempt)) } // First attempt 64GB, second 96GB, etc
+    errorStrategy 'retry'
+    maxRetries 3
+
+   input:
+// set SampleName, Read_Fastq from Read_Fastq_Ch
+   set SampleName, file(R1_Read_Fastq), file(R2_Read_Fastq), Strandness from STAR_Mapping_In_Ch   
+
+   output:
+   set SampleName, Strandness, file("${SampleName}.STAR.Aligned.sortedByCoord.out.bam"), file("${SampleName}.STAR.Aligned.toTranscriptome.out.bam"), file("${SampleName}.STAR.ReadsPerGene.out.tab"),  file("${SampleName}.STAR.SJ.out.tab"), file("${SampleName}.STAR.Chimeric.out.junction"), file("${SampleName}.STAR.Log.final.out") into STAR_Mapping_Ch  
+  
+   // --sjdbOverhang ${params.read_length - 1}
+   // --outStd BAM_Unsorted \
+   // --readFilesIn $Read_Fastq 
+   // def STRAND_TYPE=(Strandness=="Unstranded")? "Unstranded" : "Stranded"  
+
+   script:
+   def STRAND_TYPE=(Strandness =~ /Stranded_/)? "Stranded" : "Unstranded"
+   """ 
+   export TMPDIR=${params.TMP_DIR}
+   STAR \
+ --limitOutSJcollapsed 4000000 \
+ --limitSjdbInsertNsj 3000000  \
+ --limitBAMsortRAM 67108864000 \
+ --genomeDir ${params.STAR_Mapping.STAR_Index} \
+ --runThreadN ${params.STAR_Mapping.ThreadN} \
+ --readFilesIn ${R1_Read_Fastq} ${R2_Read_Fastq} \
+ --readFilesCommand zcat \
+ --outFilterType BySJout \
+ --outFilterMultimapNmax 20 \
+ --alignSJoverhangMin 8 \
+ --alignSJstitchMismatchNmax 5 -1 5 5 \
+ --alignSJDBoverhangMin 10 \
+ --outFilterMismatchNmax 999 \
+ --outFilterMismatchNoverReadLmax 0.04 \
+ --alignIntronMin 20 \
+ --alignIntronMax 100000 \
+ --alignMatesGapMax 100000 \
+ --genomeLoad NoSharedMemory \
+ --outFileNamePrefix ${SampleName}.STAR. \
+ --outSAMmapqUnique 60 \
+ --outSAMmultNmax 1 \
+ --outSAMstrandField intronMotif \
+ --outSAMattributes NH HI AS nM NM MD \
+ --outSAMunmapped Within \
+ --outSAMtype BAM SortedByCoordinate \
+ --outReadsUnmapped None \
+ --outSAMattrRGline ID:${SampleName} LB:LIB01 PL:ILLUMINA SM:${SampleName} PU:H3MHFDMXX \
+ --chimSegmentMin 12 \
+ --chimJunctionOverhangMin 12 \
+ --chimSegmentReadGapMax 3 \
+ --chimMultimapNmax 10 \
+ --chimMultimapScoreRange 10 \
+ --chimNonchimScoreDropMin 10 \
+ --chimOutJunctionFormat 1 \
+ --chimOutType Junctions WithinBAM SoftClip \
+ --quantMode TranscriptomeSAM GeneCounts \
+ --twopassMode Basic \
+ --peOverlapNbasesMin 12 \
+ --peOverlapMMp 0.1 \
+ --outWigType wiggle \
+ --outWigStrand ${STRAND_TYPE} \
+ --outWigNorm RPM
+ """  
+}
+
+/*Fork the STAR Mapping stream into several downstream channaels*/
+STAR_Mapping_Ch.into{ STAR_Mapping_Ch1; STAR_Mapping_Ch2; STAR_Mapping_Ch3; STAR_Mapping_Ch4; STAR_Mapping_Ch5; STAR_Mapping_Ch6 }
+
+/***********************************************************************************************
+* This Process is be responsible for adjusting/editting STAR Mapping's outputs to adapt to the downstream STAR Fusion
+************************************************************************************************/
+Adaptor_STAR_Fusion_In_Ch = (params.Select_STAR_Fusion == "N" ) ? Channel.empty() : STAR_Mapping_Ch1
+process STARMapping_Adaptor_STAR_Fusion {
+// publishDir "${params.outdir}/${params.project}/STARMapping_Adaptor_STAR_Fusion/$SampleName", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, Strandness, file(Align_sortedByCoord_Bam), file(Align_toTranscriptome_Bam), file(ReadsPerGene_out_tab), file(SJ_Out_Tab),  file(Chimeric_out_junction), file(Log_final_out) from Adaptor_STAR_Fusion_In_Ch
+   
+   output:
+   set SampleName, file("${SampleName}.Chimeric.out.junction") into Adaptor_STAR_Fusion_Ch
+   //ln -s ${Chimeric_out_junction}  ${SampleName}.Chimeric.out.junction
+
+   script:
+   """
+   echo "need to convert 21-column Chimeric junction file to 16-column Chimeric junction file" 
+   cat ${Chimeric_out_junction}| grep "^#" > Last_twolines_comment.txt
+   cat ${Chimeric_out_junction}| grep -v "^#" | awk 'BEGIN {OFS="\t"}; NR>1 { print \$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10,\$11,\$12,\$13,\$14,\$15,\$21}' > ${SampleName}.Chimeric.out.junction
+cat Last_twolines_comment.txt >> ${SampleName}.Chimeric.out.junction
+   """
+}
+
+
+/***********************************************************************************************
+* This Process is be responsible for adjusting/editting STAR Mapping's outputs to adapt to the downstream Arriba_Fusion
+************************************************************************************************/
+Adaptor_Arriba_Fusion_In_Ch = (params.Select_Arriba_Fusion == "N" ) ? Channel.empty() : STAR_Mapping_Ch2
+process STARMapping_Adaptor_Arriba_Fusion {
+ //publishDir "${params.outdir}/${params.project}/STARMapping_Adaptor_Arriba_Fusion/$SampleName", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, Strandness, file(Align_sortedByCoord_Bam), file(Align_toTranscriptome_Bam), file(ReadsPerGene_out_tab), file(SJ_Out_Tab),  file(Chimeric_out_junction), file(Log_final_out) from Adaptor_Arriba_Fusion_In_Ch
+   
+   output:
+   set SampleName, file("${SampleName}.aligned.sorted.bam") into Adaptor_Arriba_Fusion_Ch
+
+   script:
+   """
+   ln -s ${Align_sortedByCoord_Bam}  ${SampleName}.aligned.sorted.bam
+   """
+}
+
+/***********************************************************************************************
+* This Process is be responsible for adjusting/editting STAR Mapping's outputs to adapt to the downstream RNASeq_RSEM
+**********************************************************************************************/
+Adaptor_RNAseq_RSEM_In_Ch = (params.Select_RSEM == "N") ? Channel.empty() : STAR_Mapping_Ch3
+process STARMapping_Adaptor_RNAseq_RSEM {
+ //publishDir "${params.outdir}/${params.project}/STARMapping_Adaptor_RNAseq_RSEM/$SampleName", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, Strandness, file(Align_sortedByCoord_Bam), file(Align_toTranscriptome_Bam), file(ReadsPerGene_out_tab), file(SJ_Out_Tab),  file(STAR_Chimeric_out_junction), file(Log_final_out) from Adaptor_RNAseq_RSEM_In_Ch
+   
+   output:
+   set SampleName, Strandness, file("${SampleName}.aligned.toTranscriptome.bam") into Adaptor_RNAseq_RSEM_Ch
+
+   script:
+   """
+   ln -s $Align_toTranscriptome_Bam ${SampleName}.aligned.toTranscriptome.bam
+   """
+}
+
+/*****************************************************************************************************************************************
+* This Process is be responsible for generating the mark duplicated bam, which can be used in the downstream GATK based Variant Calling and RNAIndel calling
+*******************************************************************************************************************************************/
+process STARMapping_MarkDuplicate {
+    publishDir "${params.outdir}/${params.project}/STARMapping_MarkDuplicate/$SampleName", mode: 'copy', overwrite: true
+   
+   input:
+   set SampleName, Strandness, file(Align_sortedByCoord_Bam), file(Align_toTranscriptome_Bam), file(ReadsPerGene_out_tab), file(SJ_Out_Tab),  file(STAR_Chimeric_out_junction), file(Log_final_out) from STAR_Mapping_Ch4
+   
+   output:
+   set SampleName, file("${SampleName}.marked_dup.bam"), file("${SampleName}.marked_dup.bam.bai") into STARMapping_MarkDuplicate_Ch
+
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+
+   samtools view -f 0x2 \
+   -b ${Align_sortedByCoord_Bam} \
+   -o ${SampleName}_remove_sameread.bam
+ 
+   gatk MarkDuplicates \
+   -I ${SampleName}_remove_sameread.bam \
+   -O ${SampleName}.marked_dup.bam \
+   -M ${SampleName}.marked_dup.metrics.txt \
+   --TMP_DIR ${params.TMP_DIR}
+ 
+   samtools index ${SampleName}.marked_dup.bam  
+   """    
+}
+
+STARMapping_MarkDuplicate_Ch.into { STARMapping_MarkDuplicate_Ch1; STARMapping_MarkDuplicate_Ch2 }
+/***********************************************************************************************
+* This Process is be responsible for adjusting/editting STAR Mapping's outputs to adapt to the downstream GATK based Variant Calling
+************************************************************************************************/
+// Adaptor_RNAvar_GATK_In_Ch = (params.Select_GATK == "N") ? Channel.empty() : STAR_Mapping_Ch4
+Adaptor_RNAvar_GATK_In_Ch = (params.Select_GATK == "N") ? Channel.empty() : STARMapping_MarkDuplicate_Ch1
+process STARMapping_Adaptor_RNAvar_GATK {
+// publishDir "${params.outdir}/${params.project}/STARMapping_Adaptor_RNAvar_GATK/$SampleName", mode: 'copy', overwrite: true
+
+   input: 
+   set SampleName, file(marked_dup_bam), file(marked_dup_bam_bai) from Adaptor_RNAvar_GATK_In_Ch
+   // set SampleName, Strandness, file(Align_sortedByCoord_Bam), file(Align_toTranscriptome_Bam), file(ReadsPerGene_out_tab), file(SJ_Out_Tab),  file(STAR_Chimeric_out_junction), file(Log_final_out) from Adaptor_RNAvar_GATK_In_Ch
+   
+   output:
+   set SampleName, file("${SampleName}.GATK.marked_dup.bam"), file("${SampleName}.GATK.marked_dup.bam.bai") into Adaptor_RNAvar_GATK_Ch
+   
+   // export TMPDIR=${params.TMP_DIR} 
+   // ln -s ${Align_sortedByCoord_Bam}  ${SampleName}.aligned.sorted.bam
+   // samtools index ${SampleName}.aligned.sorted.bam
+   script:
+   """ 
+   ln -s ${marked_dup_bam}  ${SampleName}.GATK.marked_dup.bam
+   ln -s ${marked_dup_bam_bai}  ${SampleName}.GATK.marked_dup.bam.bai
+   """
+   
+}
+
+/****************************************************************************************************************************
+* This process is be responsible for adjusting/editting STAR Mapping's outputs to adapt to the downstream moudle- Pindel
+*****************************************************************************************************************************/
+Adaptor_Pindel_In_Ch = (params.Select_Pindel == "N") ? Channel.empty() : STAR_Mapping_Ch5
+process STARMapping_Adaptor_Pindel {
+ //publishDir "${params.outdir}/${params.project}/STARMapping_Adaptor_Pindel/$SampleName", mode: 'copy', overwrite: true
+   
+   input:
+   set SampleName, Strandness, file(Align_sortedByCoord_Bam), file(Align_toTranscriptome_Bam), file(ReadsPerGene_out_tab), file(SJ_Out_Tab),  file(STAR_Chimeric_out_junction), file(Log_final_out) from Adaptor_Pindel_In_Ch
+   
+   output:
+   set SampleName, file("${SampleName}.aligned.sorted.bam"), file("${SampleName}.aligned.sorted.bam.bai") into Adaptor_Pindel_Ch
+   
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   ln -s ${Align_sortedByCoord_Bam}  ${SampleName}.aligned.sorted.bam  
+   samtools index ${SampleName}.aligned.sorted.bam
+   """
+     
+}
+
+
+/****************************************************************************************************************************
+* This process is be responsible for adjusting/editting STAR Mapping's outputs to adapt to the downstream moudle- iAdmix
+*****************************************************************************************************************************/
+Adaptor_iAdmix_In_Ch = (params.Select_iAdmix == "N") ? Channel.empty() : STAR_Mapping_Ch6
+process STARMapping_Adaptor_iAdmix {
+ // publishDir "${params.outdir}/${params.project}/STARMapping_Adaptor_iAdmix/$SampleName", mode: 'copy', overwrite: true
+   
+   input:
+   set SampleName, Strandness, file(Align_sortedByCoord_Bam), file(Align_toTranscriptome_Bam), file(ReadsPerGene_out_tab), file(SJ_Out_Tab),  file(STAR_Chimeric_out_junction), file(Log_final_out) from Adaptor_iAdmix_In_Ch
+   
+   output:
+   set SampleName, file("${SampleName}.aligned.sorted.bam") into Adaptor_iAdmix_Ch
+   
+   script:
+   """
+   ln -s ${Align_sortedByCoord_Bam}  ${SampleName}.aligned.sorted.bam  
+   """ 
+     
+}
+
+/****************************************************************************************************************************
+* This process is be responsible for adjusting/editting STAR Mapping's outputs to adapt to the downstream moudle- RNAIndel
+*****************************************************************************************************************************/
+Adaptor_RNAIndel_In_Ch = (params.Select_RNAIndel == "N") ? Channel.empty() : STARMapping_MarkDuplicate_Ch2
+process STARMapping_Adaptor_RNAIndel {
+   publishDir "${params.outdir}/${params.project}/STARMapping_Adaptor_RNAIndel/$SampleName", mode: 'copy', overwrite: true
+   
+   input:
+   set SampleName, file(marked_dup_bam), file(marked_dup_bam_bai) from Adaptor_RNAIndel_In_Ch
+//   set SampleName, Strandness, file(Align_sortedByCoord_Bam), file(Align_toTranscriptome_Bam), file(ReadsPerGene_out_tab), file(SJ_Out_Tab),  file(STAR_Chimeric_out_junction), file(Log_final_out) from Adaptor_RNAIndel_In_Ch
+   
+   output:
+   set SampleName, file("${SampleName}.RNAIndel.marked_dup.bam"), file("${SampleName}.RNAIndel.marked_dup.bam.bai") into Adaptor_RNAIndel_Ch
+   
+   script:
+   """
+   ln -s ${marked_dup_bam} ${SampleName}.RNAIndel.marked_dup.bam
+   ln -s ${marked_dup_bam_bai} ${SampleName}.RNAIndel.marked_dup.bam.bai
+   """ 
+}
+
+
+/********************************************************************************************************
+* This Process is be responsible for STAR_Fusion
+**********************************************************************************************************/
+process STAR_Fusion {
+   publishDir "${params.outdir}/${params.project}/STAR_Fusion/$SampleName", mode: 'copy', overwrite: true
+  // export SINGULARITYENV_APPEND_PATH="/usr/local/arriba_v2.3.0:/usr/local/STAR-Fusion/ctat-genome-lib-builder:/usr/local/STAR-Fusion:/usr/local/RSEM" 
+
+   memory { (64.GB + (32.GB * task.attempt)) } // First attempt 64GB, second 96GB, etc
+   errorStrategy 'retry'
+   maxRetries 3
+
+   input:
+   set SampleName, file(Chimeric_out_junction) from Adaptor_STAR_Fusion_Ch
+   
+   output:
+   set SampleName, file("${SampleName}_STAR_Fusion_Result.tar.gz") into STAR_Fusion_Out_Ch
+  // set file("star-fusion.fusion_predictions.abridged.coding_effect.tsv"), file("star-fusion.fusion_predictions.tsv"), file("star-fusion.fusion_predictions.abridged.coding_effect.tsv") into STAR_Fusion_Out_Ch
+  
+ // /usr/local/src/STAR-Fusion/STAR-Fusion   ${SampleName}_STAR_Fusion_Result
+   script:
+   """       
+    export TMPDIR=${params.TMP_DIR}
+    STAR-Fusion \
+    --genome_lib_dir ${params.STAR_Fusion.Ref} \
+    -J ${Chimeric_out_junction} \
+    --CPU ${params.STAR_Fusion.ThreadN} \
+    --examine_coding_effect \
+    --output_dir ./${SampleName}_STAR_Fusion_Result
+       
+    tar -zcvf ${SampleName}_STAR_Fusion_Result.tar.gz ${SampleName}_STAR_Fusion_Result 
+   """  
+}
+
+/********************************************************************************
+* This Process is be responsible for Arriba_Fusion 
+*********************************************************************************/ 
+process Arriba_Fusion {
+   publishDir "${params.outdir}/${params.project}/Arriba_Fusion/$SampleName", mode: 'copy', overwrite: true
+ //export SINGULARITYENV_APPEND_PATH="/usr/local/arriba_v2.3.0:/usr/local/STAR-Fusion/ctat-genome-lib-builder:/usr/local/STAR-Fusion:/usr/local/RSEM" 
+   
+   memory { (100.GB + (16.GB * task.attempt)) } // First attempt 100GB, second 116GB, etc
+   errorStrategy 'retry'
+   maxRetries 3
+
+   input:
+   set SampleName, file(STAR_aligned_sorted_bam) from Adaptor_Arriba_Fusion_Ch
+    
+   output:
+   set file("${SampleName}.arriba.fusions.tsv"), file("${SampleName}.arriba.fusions.discarded.tsv") into Arriba_Fusion_Out_Ch
+   
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   arriba \
+    -a ${params.Arriba_Fusion.fa} \
+    -g ${params.Arriba_Fusion.gtf} \
+    -b ${params.Arriba_Fusion.blacklist} \
+    -k ${params.Arriba_Fusion.known_fusion_k} \
+    -t ${params.Arriba_Fusion.known_fusion_t} \
+    -p ${params.Arriba_Fusion.protein_domains} \
+    -x ${STAR_aligned_sorted_bam} \
+    -o ${SampleName}.arriba.fusions.tsv \
+    -O ${SampleName}.arriba.fusions.discarded.tsv
+   """  
+}
+
+
+/***********************************************************************************************
+* This Process is be responsible for RNAseq Quantification RSEM 
+************************************************************************************************/
+process RNAseq_RSEM {
+   publishDir "${params.outdir}/${params.project}/RNAseq_RSEM/${SampleName}", mode: 'copy', overwrite: true
+// export SINGULARITYENV_APPEND_PATH="/usr/local/arriba_v2.3.0:/usr/local/STAR-Fusion/ctat-genome-lib-builder:/usr/local/STAR-Fusion:/usr/local/RSEM" 
+   
+   input:
+   set SampleName, Strandness, file(STAR_Aligned_toTranscriptome_Bam) from Adaptor_RNAseq_RSEM_Ch
+   output:
+   set SampleName, file("${SampleName}.RSEM.genes.results"), file("${SampleName}.RSEM.isoforms.results"), file("${SampleName}.RSEM.stat.tar.gz") into RNAseq_RSEM_Ch
+
+   // --paired-end  \
+   // def STRAND_TYPE=(Strandness=="Unstranded")? "none" : "reverse"
+
+   script:
+   def STRAND_TYPE=(Strandness =~ /Stranded_/)? "reverse" : "none"  
+   """
+   export TMPDIR=${params.TMP_DIR}
+   rsem-calculate-expression \
+     --num-threads ${params.RSEM.ThreadN} \
+     --no-bam-output  \
+     --alignments  \
+     --paired-end  \
+     --strandedness ${STRAND_TYPE} \
+     ${STAR_Aligned_toTranscriptome_Bam} \
+     ${params.RSEM.Ref} \
+     ${SampleName}.RSEM
+
+   tar zcvf ${SampleName}.RSEM.stat.tar.gz ${SampleName}.RSEM.stat
+   """
+}
+
+/***********************************************************************************************
+* The following Process modules take the RSEM's output as input and are responsible for Gene 
+expression base ML-Classifier (RANK, tSNE, and RF|RBF|Polynomial ) 
+************************************************************************************************/
+RNAseq_RSEM_Ch.into{ RNAseq_RSEM_Ch1; RNAseq_RSEM_Ch2; RNAseq_RSEM_Ch3; RNAseq_RSEM_Ch4; RNAseq_RSEM_Ch5 }
+process ExpectedCount_GenesResults_Aadptor {
+  //  publishDir "${params.outdir}/${params.project}/ExpectedCount_GenesResults_Aadptor/${SampleName}", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(RSEM_genes_results), file(RSEM_isoforms_results), file(RSEM_stat_tar_gz) from RNAseq_RSEM_Ch1
+   output:
+   file("${SampleName}") into ExpectedCount_GenesResult_Ch
+ //file("${SampleName}.ExpectedCount") into ExpectedCount_GenesResult_Ch    
+ 
+   //ln -s $RSEM_genes_results ${SampleName}.ExpectedCount
+   script:
+   """
+   ln -s $RSEM_genes_results ${SampleName}
+   """   
+}
+
+/****************************************************************************************************
+* This process use grep to filter some unnecessary rows in the RSEM/genes.results, which can be used used by rsem-generate-data-matrix to generate a modified Count Matrix.   
+****************************************************************************************************/
+process ModifiedCount_GenesResults_Aadptor {
+   input:
+   set SampleName, file(RSEM_genes_results), file(RSEM_isoforms_results), file(RSEM_stat_tar_gz) from RNAseq_RSEM_Ch2
+   output:
+   file("${SampleName}.ModifiedCount") into ModifiedCount_GenesResult_Ch    
+
+   script:
+   """
+   cat $RSEM_genes_results|grep -v '^ERCC'| grep -v 'gene_id' > ${SampleName}.ModifiedCount
+   """  
+ /*
+   echo -e "__no_feature\t0\t0\t0\t16681862\t0\t0" >> ${SampleName}.ModifiedCount
+   echo -e "__ambiguous\t0\t0\t0\t1639711\t0\t0" >> ${SampleName}.ModifiedCount
+   echo -e "__too_low_aQual\t0\t0\t0\t0\t0\t0" >> ${SampleName}.ModifiedCount
+   echo -e "__not_aligned\t0\t0\t0\t0\t0\t0" >> ${SampleName}.ModifiedCount
+   echo -e "__alignment_not_unique\t0\t0\t0\t7068675\t0\t0" >> ${SampleName}.ModifiedCount
+   echo -e "__DUX4\t0\t0\t0\t19\t0\t0" >> ${SampleName}.ModifiedCount
+ */ 
+
+}
+
+/****************************************************************************************************
+* This process adopt a trick to switch the column 5 and 6 of the RSEM/genes.results, which can be used used by rsem-generate-data-matrix to generate the corresponding TPM Matrix   
+****************************************************************************************************/
+process TPM_GenesResults_Aadptor {
+  //  publishDir "${params.outdir}/${params.project}/TPM_GenesResults_Aadptor/${SampleName}", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(RSEM_genes_results), file(RSEM_isoforms_results), file(RSEM_stat_tar_gz) from RNAseq_RSEM_Ch3
+   output:
+   file("${SampleName}") into TPM_GenesResult_Ch
+// file("${SampleName}.TPM") into TPM_GenesResult_Ch    
+
+// cat $RSEM_genes_results| awk 'BEGIN {OFS="\t"}; {print \$1, \$2, \$3, \$4, \$6, \$5, \$7}'> ${SampleName}.TPM
+   script:
+   """
+   cat $RSEM_genes_results| awk 'BEGIN {OFS="\t"}; {print \$1, \$2, \$3, \$4, \$6, \$5, \$7}'> ${SampleName}
+   """   
+}
+
+/****************************************************************************************************
+* This process adopt a trick to switch the column 5 and 7 of the RSEM/genes.results, which can be used used by rsem-generate-data-matrix to generate the corresponding FPKM Matrix   
+****************************************************************************************************/
+process FPKM_GenesResults_Aadptor {
+  //  publishDir "${params.outdir}/${params.project}/FPKM_GenesResults_Aadptor/${SampleName}", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(RSEM_genes_results), file(RSEM_isoforms_results), file(RSEM_stat_tar_gz) from RNAseq_RSEM_Ch4
+   output:
+   file("${SampleName}") into FPKM_GenesResult_Ch
+// file("${SampleName}.FPKM") into FPKM_GenesResult_Ch    
+
+// cat $RSEM_genes_results| awk 'BEGIN {OFS="\t"}; {print \$1, \$2, \$3, \$4, \$7, \$6, \$5}'> ${SampleName}.FPKM  
+   script:
+   """
+   cat $RSEM_genes_results| awk 'BEGIN {OFS="\t"}; {print \$1, \$2, \$3, \$4, \$7, \$6, \$5}'> ${SampleName}
+   """   
+}
+
+/*****************************************************************************************************
+* This process is responsible for generateing a two-colum reformatted count, which can be used in the following RNAseqCNV analysis 
+*****************************************************************************************************/
+process RSEM_Reformatted_Count {
+   publishDir "${params.outdir}/${params.project}/RSEM_Reformatted_Count/${SampleName}", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(RSEM_genes_results), file(RSEM_isoforms_results), file(RSEM_stat_tar_gz) from RNAseq_RSEM_Ch5
+   
+   output:
+   set SampleName, file("${SampleName}.reformatted.counts") into RESM_Reformatted_Count_Ch
+
+//cat $RSEM_genes_results| grep -v 'ERCC' |grep -v 'gene_id' |awk 'BEGIN {OFS="\t"}; {print \$1, \$5}'> ${SampleName}.reformatted.counts 
+// cat $RSEM_genes_results| grep -v 'ERCC' |grep -v 'gene_id'  |awk '{printf "%s\\t%.0f\\n",\$1,\$5}'> ${SampleName}.reformatted.counts
+// cat $RSEM_genes_results| grep -v 'ERCC' |grep -v 'gene_id' |awk 'BEGIN {OFS="\t"}; {print \$1, \$5}'| tr '.' '\t' |cut -f 1,3 > ${SampleName}.reformatted.counts
+  
+   script:
+   """
+   cat $RSEM_genes_results| grep -v 'ERCC' |grep -v 'gene_id'  |awk '{printf "%s\\t%.0f\\n",\$1,\$5}'|tr '.' '\\t' |cut -f 1,3> ${SampleName}.reformatted.counts
+   """   
+}
+
+/*****************************************************************************************************
+* This process is responsible for generating the Expected CountMatrix across samples, which can be used for GE-ML (Gene Expression based Machine Learning Classifier) 
+******************************************************************************************************/
+process Get_ExpectedCount_Matrix {
+  publishDir "${params.outdir}/${params.project}/ExpectedCount_Matrix/", mode: 'copy', overwrite: true
+  input:
+  file(ExpectedCount_genes_results_list) from ExpectedCount_GenesResult_Ch.toSortedList() //.collect()  
+  
+  output:
+  file("${params.project}.ExpectedCount.matrix") into ExpectedCount_Matrix_Ch
+  
+  script:
+  """
+  rsem-generate-data-matrix \
+  ${ ExpectedCount_genes_results_list.collect { " $it" }.join()} >${params.project}.ExpectedCount.matrix
+  """
+}
+
+/*****************************************************************************************************
+* This process is responsible for generating the Modified CountMatrix across samples, which can be used for GE-ML (Gene Expression based Machine Learning Classifier) 
+******************************************************************************************************/
+process Get_ModifiedCount_Matrix {
+  publishDir "${params.outdir}/${params.project}/ModifiedCount_Matrix/", mode: 'copy', overwrite: true
+  input:
+  file(ModifiedCount_genes_results_list) from ModifiedCount_GenesResult_Ch.toSortedList() //.collect()  
+  
+  output:
+  file("${params.project}.ModifiedCount.matrix") into ModifiedCount_Matrix_Ch
+  
+  script:
+  """
+  rsem-generate-data-matrix \
+  ${ ModifiedCount_genes_results_list.collect { " $it" }.join()} >${params.project}.ModifiedCount.matrix
+  """
+}
+
+/*****************************************************************************************************
+* This process is responsible for generating the TPM Matrix across samples, which can be used for GE-ML (Gene Expression based Machine Learning Classifier) 
+******************************************************************************************************/
+process Get_TPM_Matrix {
+  publishDir "${params.outdir}/${params.project}/TPM_Matrix/", mode: 'copy', overwrite: true
+  input:
+  file(TPM_genes_results_list) from TPM_GenesResult_Ch.toSortedList()     //collect()  
+  
+  output:
+  file("${params.project}.TPM.matrix") into TPM_Matrix_Ch
+  
+  script:
+  """
+  rsem-generate-data-matrix \
+  ${ TPM_genes_results_list.collect { " $it" }.join()} > ${params.project}.TPM.matrix
+  """
+}
+
+/*****************************************************************************************************
+* This process is responsible for generating the FPKM Matrix across samples, which can be used for GE-ML (Gene Expression based Machine Learning Classifier) 
+******************************************************************************************************/
+process Get_FPKM_Matrix {
+  publishDir "${params.outdir}/${params.project}/FPKM_Matrix/", mode: 'copy', overwrite: true
+  input:
+  file(FPKM_genes_results_list) from FPKM_GenesResult_Ch.toSortedList()    //collect()  
+  
+  output:
+  file("${params.project}.FPKM.matrix") into FPKM_Matrix
+  
+  script:
+  """
+  rsem-generate-data-matrix \
+  ${ FPKM_genes_results_list.collect { " $it" }.join()} > ${params.project}.FPKM.matrix
+  """
+}
+
+ExpectedCount_Matrix_Ch.into { ExpectedCount_Matrix_Ch1; ExpectedCount_Matrix_Ch2 }
+tSNE_Count_Matrix_Ch = (params.Select_ML_Classifier_tSNE == "N") ? Channel.empty() : ModifiedCount_Matrix_Ch // ExpectedCount_Matrix_Ch1
+RF_Count_Matrix_Ch = (params.Select_ML_Classifier_RF == "N") ? Channel.empty() : ExpectedCount_Matrix_Ch2
+RANK_TPM_Matrix_Ch = (params.Select_ML_Classifier_RANK == "N") ? Channel.empty() : TPM_Matrix_Ch 
+
+/* This Process module is responsible for Gene-Expression Machine Learning Classifier -RANK*/
+process ML_Classifier_RANK {
+  publishDir "${params.outdir}/${params.project}/ML_Classifier_RANK/", mode: 'copy', overwrite: true
+  input:
+  file(TPM_Matrix) from RANK_TPM_Matrix_Ch
+  val RANK_RDS from RANK_Training_RDS
+
+  output:file("${params.project}*.*")
+  // file("${params.project}_RANK_codingGene_classification.txt")
+  // ${params.ML_Classifier.RANK_Training_RDS}
+  
+  script: 
+  """
+  export R_LIBS=${params.R_4_2_LIBS}
+  Rscript ${params.ML_Classifier.RScript_Path}/ML_Classifier_Rank.R \
+  ${params.project} \
+  ${RANK_RDS} \
+  $TPM_Matrix 
+  """ 
+}
+
+/* This Process module is responsible for Gene-Expression Machine Learning Classifier -tSNE */
+process ML_Classifier_tSNE {
+  publishDir "${params.outdir}/${params.project}/ML_Classifier_tSNE/", mode: 'copy', overwrite: true
+  input:
+  file(Count_Matrix) from tSNE_Count_Matrix_Ch
+  
+  output:
+  set file("${params.project}_top4_PCs*"), file("${params.project}_tSNE_2D.*"), file("${params.project}_tSNE_3D.*"), file("tsne_color_map.csv"), file("images.tar.gz") into ML_Classifier_tSNE_Ch 
+  
+  //template 'ML_Classifier_tSNE.sh' ML_Classifier_tSNE.R generate_tSNE.R
+  //def cmd = (workflow.profile != "singularity") ? "Rscript" : ""
+  // ${params.ML_Classifier.tSNE.LibraryType} \
+  script: 
+  """
+  export R_LIBS=${params.R_4_2_LIBS}
+  Rscript ${params.ML_Classifier.RScript_Path}/ML_Classifier_tSNE.R \
+  ${params.project} \
+  ${Count_Matrix} \
+  ${params.ML_Classifier.tSNE.Metadata} \
+  ${params.ML_Classifier.tSNE.ReferenceCountsFile} \
+  ${params.ML_Classifier.tSNE.ReferenceMetaData} \
+  ${params.ML_Classifier.tSNE.Top1kGenesFile}  
+
+  tar zcvf images.tar.gz images
+  """
+}
+
+/* This Process module is responsible for Gene-Expression Machine Learning Classifier -RF(Random Forest) */
+process ML_Classifier_RF {
+  publishDir "${params.outdir}/${params.project}/ML_Classifier_RF/", mode: 'copy', overwrite: true
+  input:
+  file(Count_Matrix) from RF_Count_Matrix_Ch
+  val RF_RDS from RF_Training_RDS  
+
+  output:
+  file("${params.project}_RF_predictions.tsv")
+  
+  //def cmd = (workflow.profile == "singularity") ? "Rscript" : ""
+  // echo "ML_Classifier_RF"  ${params.ML_Classifier.RF_Training_RDS} \
+
+  script:
+  """
+  export R_LIBS=${params.R_4_2_LIBS}
+  Rscript ${params.ML_Classifier.RScript_Path}/ML_Classifier_RF.R \
+  ${params.project} \
+  ${RF_RDS} \
+  $Count_Matrix
+  """ 
+}
+
+
+/***********************************************************************************************
+* The following Process modules are responsible for GATK based RNA Variant Calling
+************************************************************************************************/
+/***********************************************************************************************
+* This Process, as the 1st process of GATK Variant Calling, is responsible for SplitNCigarReads 
+************************************************************************************************/
+process GATK_SplitNCigarReads {
+   publishDir "${params.outdir}/${params.project}/GATK_SplitNCigarReads", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(STAR_Aligned_out_bam), file(STAR_Aligned_out_bam_bai) from Adaptor_RNAvar_GATK_Ch
+
+   output:
+   set SampleName, file("${SampleName}.splitN.bam"), file("${SampleName}.splitN.bai") into SplitNCigarRead_Ch
+
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   gatk SplitNCigarReads \
+    --java-options "-Xms8g" \
+    --reference ${params.GATK.Ref} \
+    --input ${STAR_Aligned_out_bam} \
+    --output ${SampleName}.splitN.bam
+   """
+}
+
+/***********************************************************************************************
+* This Process, as the 2nd process of GATK Variant Calling, is responsible for BaseRecalibration 
+************************************************************************************************/
+process GATK_BaseRecalibrator {
+   publishDir "${params.outdir}/${params.project}/GATK_BaseRecalibrator", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(splitN_bam), file(splitN_bam_bai) from SplitNCigarRead_Ch
+
+   output:
+   set SampleName, file("${SampleName}.recal_data.table"), file("${SampleName}_cached.splitN.bam"), file("${SampleName}_cached.splitN.bai") into BaseRecalibrator_Ch   
+
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   gatk BaseRecalibrator \
+    --java-options "-Xms32g" \
+    --use-original-qualities \
+    --reference ${params.GATK.Ref} \
+    --known-sites ${params.GATK.KNOWN_SITE1} \
+    --known-sites ${params.GATK.KNOWN_SITE2} \
+    --known-sites ${params.GATK.KNOWN_SITE3}  \
+    --input $splitN_bam \
+    --output ${SampleName}.recal_data.table
+
+    ln -s $splitN_bam ${SampleName}_cached.splitN.bam
+    ln -s ${splitN_bam_bai} ${SampleName}_cached.splitN.bai
+   """
+}
+
+/***********************************************************************************************
+* This Process, as the 3nd process of GATK Variant Calling, is responsible for Applying the recalibrated data table to BQSR. 
+************************************************************************************************/
+process GATK_ApplyBQSR {
+   publishDir "${params.outdir}/${params.project}/GATK_ApplyBQSR", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(recal_data_table), file(cached_splitN_bam), file(cached_splitN_bam_bai) from BaseRecalibrator_Ch
+   output:
+   set SampleName, file("${SampleName}.recal.bam"), file("${SampleName}.recal.bai") into ApplyBQSR_Ch   
+
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   gatk ApplyBQSR \
+    --java-options "-Xms32g" \
+    --use-original-qualities \
+    --add-output-sam-program-record \
+    --reference ${params.GATK.Ref} \
+    --bqsr-recal-file ${recal_data_table} \
+    --input ${cached_splitN_bam} \
+    --output ${SampleName}.recal.bam
+   """
+}
+
+ApplyBQSR_Ch.into {ApplyBQSR_Ch1; ApplyBQSR_Ch2; ApplyBQSR_Ch3}
+
+/***********************************************************************************************
+* This Process is responsible for using Vardict  for Variant Calling.
+************************************************************************************************/
+VarDict_InCh= (params.Select_VarDict=="N")? Channel.empty() : ApplyBQSR_Ch3
+process VarDict {
+   publishDir "${params.outdir}/${params.project}/VarDict", mode: 'copy', overwrite: true
+   input:
+   set SampleName, file(BQSR_recal_bam), file(BQSR_recal_bai) from VarDict_InCh
+   output:
+   set SampleName, file("${SampleName}.VarDict.vcf.gz"), file("${SampleName}.VarDict.vcf.gz.tbi") into VarDict_Ch
+   
+   // ${VARDICT_DIR}/vardict-java -f 0.05 -c 1 -S 2 -E 3 -g 4 -r 2 -t -th $THREADS -v -G ${REFERENCE} -b $BAM $CALLBED | ${VARDICT_DIR}/teststrandbias.R | ${VARDICT_DIR}/var2vcf_valid.pl -N ${SAMPLE} -E -f 0.02 > ${SAMPLE}.${CALLER}.vcf
+
+   script:
+   """
+    export R_LIBS=${params.R_4_1_LIBS}
+
+    vardict \
+    -f 0.05 \
+    -c 1 \
+    -S 2 \
+    -E 3 \
+    -g 4 \
+    -r 2 \
+    -t \
+    -th ${params.VarDict.ThreadN} \
+    -v \
+    -G ${params.VarDict.REFERENCE} \
+    -b ${BQSR_recal_bam} \
+    ${params.VarDict.CALLBED} | \
+    teststrandbias.R | \
+    var2vcf_valid.pl -N ${SampleName} \
+    -E \
+    -f 0.02 > ${SampleName}.VarDict.vcf
+   
+    bgzip \
+    ${SampleName}.VarDict.vcf
+ 
+    tabix \
+    ${SampleName}.VarDict.vcf.gz
+   """    
+}
+
+/***********************************************************************************************
+* This Process, as the 4th process of GATK Variant Calling and also the key module for Haplotype Variant Calling.
+************************************************************************************************/
+GATK_HaplotypeCaller_InCh = (params.Select_Haplo_PerChrom=="Y")? Channel.empty() : ApplyBQSR_Ch1
+process GATK_HaplotypeCaller {
+   publishDir "${params.outdir}/${params.project}/GATK_HaplotypeCaller", mode: 'copy', overwrite: true
+
+   memory { (64.GB + (32.GB * task.attempt)) } // First attempt 64GB, second 96GB, etc
+   errorStrategy 'retry'
+   maxRetries 3
+
+   input:
+   set SampleName, file(BQSR_recal_bam), file(BQSR_recal_bai) from GATK_HaplotypeCaller_InCh
+   output:
+   set SampleName, file("${SampleName}.GATK.vcf.gz"), file("${SampleName}.GATK.vcf.gz.tbi")  into HaplotypeCaller_Ch
+
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   gatk HaplotypeCaller \
+    --java-options "-Xms32g" \
+    --annotation-group StandardAnnotation \
+    --annotation-group StandardHCAnnotation \
+    --standard-min-confidence-threshold-for-calling 20 \
+    --dont-use-soft-clipped-bases \
+    --reference ${params.GATK.Ref} \
+    --input ${BQSR_recal_bam} \
+    --output ${SampleName}.GATK.vcf.gz
+   """
+}
+
+/************************************************************************************************************
+*  This process is 4th process of GATK Variant Calling, but it is a speed up module, by which the haplotype calling can be executed chrom by chrom.
+*  The chrom level parallel structure can greatly speed up the time-consuming module-HaplotypeCaller
+************************************************************************************************************/
+
+HaplotypeCaller_perChrom_inch = (params.Select_Haplo_PerChrom=="Y")? ApplyBQSR_Ch2.spread(chromosomes_ch) : Channel.empty()
+process GATK_HaplotypeCaller_perChrom {
+     
+    input:   
+    set SampleName, file(BQSR_recal_bam), file(BQSR_recal_bai), Chrosome_Interval from HaplotypeCaller_perChrom_inch
+  
+	output:
+    set SampleName, file("${SampleName}.GATK.${Chrosome_Interval}.vcf.gz") , file("${SampleName}.GATK.${Chrosome_Interval}.vcf.gz.tbi") into Chrosome_Interval_vcf_Ch
+
+    script:
+    """  
+    export TMPDIR=${params.TMP_DIR}
+    gatk HaplotypeCaller \
+    --java-options "-Xms32g" \
+    --annotation-group StandardAnnotation \
+    --annotation-group StandardHCAnnotation \
+    --standard-min-confidence-threshold-for-calling 20 \
+    --dont-use-soft-clipped-bases \
+    --reference ${params.GATK.Ref} \
+    --input ${BQSR_recal_bam} \
+    --intervals ${Chrosome_Interval} \
+    --output ${SampleName}.GATK.${Chrosome_Interval}.vcf.gz 
+    
+    """
+} 
+
+/************************************************************************************************************
+/* This Process is be responsible for Merging the interval (eg. chrosome level) VCFs into sample level VCF 
+*************************************************************************************************************/
+process MergeVCF {
+    publishDir "${params.outdir}/${params.project}/MergeVCF", mode: 'copy', overwrite: true
+	
+	input:
+	set SampleName, file (vcfs), file (vcftbis) from Chrosome_Interval_vcf_Ch.groupTuple()
+
+	output:
+    set SampleName, file("${SampleName}.GATK.vcf.gz") , file("${SampleName}.GATK.vcf.gz.tbi") into HaplotypeCaller_merge_vcf_Ch
+
+    script:    
+    """
+    export TMPDIR=${params.TMP_DIR}
+    gatk --java-options '-Xmx64g' \
+    MergeVcfs \
+    ${vcfs.collect{"--INPUT $it " }.join()} \
+    -O ${SampleName}.GATK.vcf.gz
+    """
+} 
+
+/***********************************************************************************************
+* This Process, as the last process module of GATK Variant Calling , is responsible for filtering the  called Variant from Haplotype_Caller.
+************************************************************************************************/
+GATK_VariantFiltration_InCh=(params.Select_Haplo_PerChrom=="Y")? HaplotypeCaller_merge_vcf_Ch : HaplotypeCaller_Ch
+process GATK_VariantFiltration {
+   publishDir "${params.outdir}/${params.project}/GATK_VariantFiltration", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(GATK_vcf), file(GATK_vcf_tbi) from GATK_VariantFiltration_InCh
+   output:
+   set SampleName, file("${SampleName}.GATK.hardfiltered.vcf"), file("${SampleName}.GATK.hardfiltered.vcf.idx") into RNAvar_GATK_Ch
+ 
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   gatk VariantFiltration \
+    --java-options "-Xms32g" \
+    --cluster-window-size 35 \
+    --cluster-size 3 \
+    --filter-name "FS" \
+    --filter-expression "FS > 30.0" \
+    --filter-name "QD" \
+    --filter-expression "QD < 2.0" \
+    --reference ${params.GATK.Ref} \
+    --variant ${GATK_vcf} \
+    --output ${SampleName}.GATK.hardfiltered.vcf
+   """
+}
+
+
+RNAvar_GATK_Ch.into {RNAvar_GATK_Ch1; RNAvar_GATK_Ch2; RNAvar_GATK_Ch3}
+/********************************************************************************************
+*  This process is responsible for annotating the RNA-seq SNV varaints called by GATK
+*********************************************************************************************/
+Variant_ANNOVAR_In_Ch= (params.Select_Variant_ANNOVAR == "N") ? Channel.empty() :RNAvar_GATK_Ch1
+process Variant_ANNOVAR {
+   publishDir "${params.outdir}/${params.project}/Variant_ANNOVAR/${SampleName}", mode: 'copy', overwrite: true
+   input:
+   set SampleName, file(GATK_vcf), file(GATK_vcf_idx) from Variant_ANNOVAR_In_Ch 
+   
+   output:
+   set file("${SampleName}.vcf.ann.avinput"), file("${SampleName}.*.annovar.*.tab"), file("${SampleName}.vcf.ann.*.txt"), file("${SampleName}.vcf.ann.*.vcf.gz"), file("${SampleName}.vcf.ann.*.vcf.gz.tbi") into Variant_ANNOVAR_Ch
+
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   ${params.ANNOVAR.ANNOVAR_PATH}/table_annovar.pl \
+   ${GATK_vcf} \
+   ${params.ANNOVAR.ANNOVAR_DB} \
+   -buildver ${params.ANNOVAR.REF_BUILD} \
+   -out ${SampleName}.vcf.ann -remove -protocol refGene,avsnp150,1000g2015aug_all,exac03,exac03nontcga,esp6500siv2_all,gnomad211_exome,gnomad30_genome,dbnsfp35a,revel,intervar_20180118,dbscsnv11,cosmic70,nci60,clinvar_20180603 -operation g,f,f,f,f,f,f,f,f,f,f,f,f,f,f -nastring . -vcfinput
+   
+   bgzip ${SampleName}.vcf.ann.${params.ANNOVAR.REF_BUILD}_multianno.vcf
+   tabix ${SampleName}.vcf.ann.${params.ANNOVAR.REF_BUILD}_multianno.vcf.gz
+   
+   gatk VariantsToTable \
+   -V ${SampleName}.vcf.ann.${params.ANNOVAR.REF_BUILD}_multianno.vcf.gz \
+   -O ${SampleName}.GATK.annovar.${params.ANNOVAR.REF_BUILD}.tab \
+   ${params.ANNOVAR.CONFIG_STANDARD} ${params.ANNOVAR.CONFIG_INFO} ${params.ANNOVAR.CONFIG_FORMAT} ${params.ANNOVAR.CONFIG_ANNOVAR} 
+   """
+}
+
+
+/**********************************************************************************************
+* This process is responsible for RNAseqCNV calling, which is based on the two-column reformatted count file from RESM_Reformatted_Count_Ch and hard-filttered vcf from RNAvar_GATK_Ch2
+**********************************************************************************************/
+RNASeqCNV_Ch_In= (params.Select_RNASeqCNV == "N") ? Channel.empty() : RESM_Reformatted_Count_Ch.join(RNAvar_GATK_Ch2)
+process RNASeqCNV {
+   publishDir "${params.outdir}/${params.project}/RNASeqCNV/${SampleName}", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(reformatted_count), file(GATK_hardfiltered_vcf), file(GATK_hardfiltered_vcf_idx) from RNASeqCNV_Ch_In
+  
+   output:
+   set SampleName, file("alteration_matrix.tsv"), file("estimation_table.tsv"), file("manual_an_table.tsv"), file("${SampleName}.tar.gz") into RNASeqCNV_Ch  
+   
+   script:
+   """
+   echo -e out_dir=\\"./\\"> config
+   echo -e count_dir=\\"./\\" >>config
+   echo -e snv_dir=\\"./\\" >>config
+   
+   echo -e "${SampleName}\\t${reformatted_count}\\t${GATK_hardfiltered_vcf}"> metadata 
+   
+   export R_LIBS=${params.R_4_1_LIBS}
+   Rscript ${params.RNASeq_CNV.RScript_Path}/RNASeqCNV.R >RNASeq_CNV.log 2>RNASeq_CNV.err
+   tar zcvf ${SampleName}.tar.gz ${SampleName}
+
+   """
+}
+
+
+/**********************************************************************************************
+* This process is responsible for RNAIndel calling, which is based on the STAR mapping bam and hard-filttered vcf from RNAvar_GATK_Ch3
+**********************************************************************************************/
+RNAIndel_Ch_In= (params.Select_RNAIndel == "N") ? Channel.empty() : Adaptor_RNAIndel_Ch.join(RNAvar_GATK_Ch3)
+process RNAIndel {
+  publishDir "${params.outdir}/${params.project}/RNAIndel/${SampleName}", mode: 'copy', overwrite: true
+
+  input:
+  set SampleName, file(STAR_marked_dup_bam), file(STAR_marked_dup_bam_bai), file(GATK_hardfiltered_vcf), file(GATK_hardfiltered_vcf_idx) from RNAIndel_Ch_In
+  
+  output:
+  set SampleName, file("${SampleName}_RNAIndel_gatk.vcf.gz"), file("${SampleName}_RNAIndel_gatk.vcf.gz.tbi"), file("${SampleName}_RNAIndel_gatk.tab") into RNAIndel_Ch
+
+  // -p ${params.RNAIndel.ThreadN} \  
+  script:
+  """
+  export TMPDIR=${params.TMP_DIR}
+
+  bgzip ${GATK_hardfiltered_vcf}
+  tabix ${GATK_hardfiltered_vcf}.gz
+  
+  rnaindel PredictIndels \
+  -i ${STAR_marked_dup_bam} \
+  -o ${SampleName}_RNAIndel_gatk.vcf \
+  -r ${params.RNAIndel.Ref_Fa} \
+  -m 16000m \
+  -d ${params.RNAIndel.Database_model} \
+  -v ${GATK_hardfiltered_vcf}.gz \
+  -p ${params.RNAIndel.ThreadN}
+
+  gatk VariantsToTable \
+   -V ${SampleName}_RNAIndel_gatk.vcf.gz \
+   -O ${SampleName}_RNAIndel_gatk.tab \
+   ${params.RNAIndel.CONFIG_STANDARD} ${params.RNAIndel.CONFIG_INFO} ${params.RNAIndel.CONFIG_FORMAT} 
+  """
+}
+
+
+/**********************************************************************************************
+* This process is responsible for Pindel, which is based on the aligned bam for detecting breakpoints of large deletions, mdeium size insertions,
+inversions, tandem duplications and other SVs at signle-based resolution. 
+**********************************************************************************************/
+process Pindel {
+   publishDir "${params.outdir}/${params.project}/Pindel/${SampleName}", mode: 'copy', overwrite: true
+   input:
+   set SampleName, file(STAR_Aligned_out_bam), file(STAR_Aligned_out_bam_bai) from Adaptor_Pindel_Ch
+
+   output:
+   set SampleName, file("${SampleName}_Pindel.out_BP"), file("${SampleName}_Pindel.out_D"), file("${SampleName}_Pindel.out_INV"), file("${SampleName}_Pindel.out_LI"), file("${SampleName}_Pindel.out_SI"), file("${SampleName}_Pindel.out_TD"), file("${SampleName}_Pindel.out_RP") into Pindel_Ch
+   
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   echo -e "${STAR_Aligned_out_bam}\\t${params.Pindel.InsertSize}\\t${SampleName} "> ${SampleName}.PindelConfig
+   pindel \
+   -f ${params.Pindel.Ref} \
+   -i ${SampleName}.PindelConfig \
+   --number_of_threads ${params.Pindel.ThreadN} \
+   --min_num_matched_bases 3 \
+   --report_inversions TRUE \
+   --min_inversion_size 20 \
+   --report_duplications TRUE \
+   --report_long_insertions TRUE \
+   --report_breakpoints TRUE \
+   --report_interchromosomal_events TRUE \
+   --report_breakpoints \
+   --minimum_support_for_event 2 \
+   --maximum_allowed_mismatch_rate 0.3 \
+   --sensitivity 0.99 \
+   --min_distance_to_the_end 5 \
+   --include ${params.Pindel.ITD_BED} \
+   -o ${SampleName}_Pindel.out  
+   """
+}
+
+/**********************************************************************************************
+* This process is responsible for converting the Pindel output into VCF format
+**********************************************************************************************/
+process Pindel2VCF {
+    
+   publishDir "${params.outdir}/${params.project}/Pindel2VCF/${SampleName}", mode: 'copy', overwrite: true
+   input:
+   set SampleName, file(Pindel_out_BP), file(Pindel_out_D), file(Pindel_out_INV), file(Pindel_out_LI), file(Pindel_out_SI), file(Pindel_out_TD), file(Pindel_out_RP) from Pindel_Ch
+
+   output:
+   set SampleName, file("${SampleName}.Pindel.${params.Pindel.REF_BUILD}.raw.vcf.gz"), file("${SampleName}.Pindel.${params.Pindel.REF_BUILD}.raw.vcf.gz.tbi")  into Pindel2VCF_Ch
+   
+   script:
+   """
+   export TMPDIR=${params.TMP_DIR}
+   pindel2vcf \
+   -P ${SampleName}_Pindel.out \
+   -r ${params.Pindel.Ref} \
+   -R ${params.Pindel.REF_BUILD} \
+   -d ${params.Pindel.REF_Date} \
+   --min_coverage ${params.Pindel.Min_Coverage}  \
+   --het_cutoff ${params.Pindel.Het_Cutoff} \
+   --hom_cutoff ${params.Pindel.Hom_Cutoff} \
+   --vcf ${SampleName}.Pindel.${params.Pindel.REF_BUILD}.raw.vcf
+
+   bgzip -f ${SampleName}.Pindel.${params.Pindel.REF_BUILD}.raw.vcf
+   tabix -f -p vcf ${SampleName}.Pindel.${params.Pindel.REF_BUILD}.raw.vcf.gz
+   bcftools view -Ov --exclude-uncalled --min-ac=1 ${SampleName}.Pindel.${params.Pindel.REF_BUILD}.raw.vcf.gz 
+   """
+    
+}
+
+/*************************************************************************************************************************
+* This process iAdmix is responsible for estimating admixture coefficients, which is based on the aligned bam and population 
+* allele frequencies for common SNPs. The output is admixture coefficients for each reference population
+*
+* // --path ${which ANCESTRY|sed -e 's/\/ANCESTRY//g'}, `which ANCESTRY|sed -e 's/\/ANCESTRY//g'`
+* --path "/hpcf/authorized_apps/rhel7_apps/iadmix/vendor/iAdmix"
+***************************************************************************************************************************/
+process iAdmix {
+   publishDir "${params.outdir}/${params.project}/iAdmix/${SampleName}", mode: 'copy', overwrite: true
+   input:
+   set SampleName, file(STAR_Aligned_out_bam) from Adaptor_iAdmix_Ch
+
+   output:
+   set SampleName, file("${SampleName}.ancestry.input"), file("${SampleName}.ancestry.out"), file("${SampleName}.forGLL"), file("${SampleName}.GLL") into iAdmix_Ch
+
+   //ANCESTRY_PATH="\${which ANCESTRY|sed -e 's/\/ANCESTRY//g'}"
+      
+   script:  
+   """   
+   export TMPDIR=${params.TMP_DIR}
+   runancestry.py \
+   -f ${params.iAdmix.AFFILE} \
+   --bam ${STAR_Aligned_out_bam} \
+   --addchr TRUE -o ${SampleName} \
+   --path ${params.iAdmix.iAdmix_PATH}
+   """
+}
+
+/* process iAdmix {
+   publishDir "${params.outdir}/${params.project}/iAdmix/${SampleName}", mode: 'copy', overwrite: true
+
+   input:
+   set SampleName, file(STAR_Aligned_out_bam) from Adaptor_iAdmix_Ch
+
+   output:
+   set SampleName, file("${SampleName}.ancestry.input"), file("${SampleName}.ancestry.out"), file("${SampleName}.forGLL"), (file("${SampleName}.GLL") into iAdmix_Ch
+   
+   script:
+   """   
+   runancestry.py \
+   -f ${params.iAdmix.AFFILE} \
+   --bam ${STAR_Aligned_out_bam} \
+   --addchr TRUE \
+   -o ${SampleName} \
+   --path ${params.iAdmix.iAdmix_PATH} 
+   """
+}
+*/
+
+// Local Variables:
+// mode: groovy
+// End:
